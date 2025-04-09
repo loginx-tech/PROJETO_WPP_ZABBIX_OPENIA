@@ -1,5 +1,5 @@
 import express from 'express';
-import { getZabbixToken, getAlertas, sendWhatsAppMessage } from '../controllers/zabbixController.js';
+import { getZabbixToken, getAlertas, sendWhatsAppMessage, checkWhatsAppStatus, generateWhatsAppQR } from '../controllers/zabbixController.js';
 import { config } from '../config.js';
 
 const router = express.Router();
@@ -35,10 +35,10 @@ router.get('/alerta', async (req, res) => {
 // Rota para verificar status do WhatsApp
 router.get('/whatsapp/status', async (req, res) => {
   try {
-    // Aqui você pode implementar a verificação real do status do WhatsApp
-    // Por enquanto, vamos retornar um status mockado
-    res.json({ status: 'disconnected' });
+    const status = await checkWhatsAppStatus();
+    res.json(status);
   } catch (error) {
+    console.error('Erro ao verificar status do WhatsApp:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -46,10 +46,10 @@ router.get('/whatsapp/status', async (req, res) => {
 // Rota para obter QR Code do WhatsApp
 router.get('/whatsapp/qr', async (req, res) => {
   try {
-    // Aqui você pode implementar a geração real do QR Code
-    // Por enquanto, vamos retornar um erro mockado
-    res.status(503).json({ error: 'Serviço temporariamente indisponível' });
+    const qrData = await generateWhatsAppQR();
+    res.json(qrData);
   } catch (error) {
+    console.error('Erro ao gerar QR Code:', error);
     res.status(500).json({ error: error.message });
   }
 });
