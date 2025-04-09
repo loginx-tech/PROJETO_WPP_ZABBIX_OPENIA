@@ -12,12 +12,10 @@ export default defineConfig({
     emptyOutDir: true,
     cssCodeSplit: true,
     rollupOptions: {
-      external: ['react-bootstrap'],
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          bootstrap: ['react-bootstrap', 'bootstrap'],
-        },
+          vendor: ['react', 'react-dom', 'react-router-dom', 'react-bootstrap', 'bootstrap'],
+        }
       }
     }
   },
