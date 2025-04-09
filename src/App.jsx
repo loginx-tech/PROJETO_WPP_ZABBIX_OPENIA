@@ -1,13 +1,21 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('authToken') === 'authenticated';
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
+      setIsAuthenticated(token === 'authenticated');
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -19,6 +27,7 @@ function App() {
       localStorage.setItem('authToken', 'authenticated');
       setIsAuthenticated(true);
       setError('');
+      window.location.href = '/';
     } else {
       setError('Credenciais inválidas');
     }
@@ -27,7 +36,16 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     setIsAuthenticated(false);
+    window.location.href = '/login';
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   // Componente protegido que inclui o botão de logout
   const ProtectedDashboard = () => {
@@ -46,7 +64,9 @@ function App() {
             </div>
           </div>
         </nav>
-        <Dashboard />
+        <main className="container mx-auto px-4 py-8">
+          <Dashboard />
+        </main>
       </div>
     );
   };
