@@ -78,7 +78,7 @@ async function ensureAuthToken() {
   return wppToken;
 }
 
-export const getZabbixToken = async () => {
+export async function getZabbixToken() {
   try {
     const response = await axios.post(serverConfig.ZABBIX_URL, {
       jsonrpc: '2.0',
@@ -91,183 +91,74 @@ export const getZabbixToken = async () => {
     });
     return response.data.result;
   } catch (error) {
-    throw new Error(`Erro ao obter token do Zabbix: ${error.message}`);
+    console.error('Erro ao obter token Zabbix:', error);
+    throw new Error('Falha ao obter token do Zabbix');
   }
-};
+}
 
-export const getAlertas = async () => {
+export async function getAlertas() {
   try {
-    if (!zabbixToken) {
-      await getZabbixToken();
-    }
-
-    const response = await axios.post(`${serverConfig.zabbix.url}/api_jsonrpc.php`, {
+    const token = await getZabbixToken();
+    const response = await axios.post(serverConfig.ZABBIX_URL, {
       jsonrpc: '2.0',
-      method: 'problem.get',
+      method: 'trigger.get',
       params: {
-        output: 'extend',
+        output: ['triggerid', 'description', 'priority', 'lastchange'],
         selectHosts: ['host'],
-        sortfield: ['eventid'],
+        filter: {
+          value: 1,
+          status: 0
+        },
+        sortfield: 'lastchange',
         sortorder: 'DESC',
-        limit: 10
+        limit: 100
       },
-      auth: zabbixToken,
-      id: 2
+      auth: token,
+      id: 1
     });
-
     return response.data.result;
   } catch (error) {
-    console.error('Erro ao obter alertas do Zabbix:', error);
-    throw error;
+    console.error('Erro ao obter alertas:', error);
+    throw new Error('Falha ao obter alertas do Zabbix');
   }
-};
+}
 
-export const checkWhatsAppStatus = async () => {
+export async function sendWhatsAppMessage(message, phone) {
   try {
-    await ensureAuthToken();
-
-    console.log('Verificando status do WhatsApp...');
-    const url = `${WPP_URL}/api/${wppSession}/status-session`;
-    console.log('URL do status:', url);
-
-    const response = await axios.get(url, {
-      headers: {
-        'Authorization': `Bearer ${wppToken}`
-      }
-    });
+    console.log(`Enviando mensagem para ${phone}:`, message);
     
-    console.log('Resposta do status:', response.data);
+    const response = await axios.post('http://localhost:3005/api/whatsapp/send', {
+      phone,
+      message
+    });
+
+    console.log('Resposta do envio:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Erro detalhado ao verificar status:', {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data
-    });
-    throw new Error(`Erro ao verificar status do WhatsApp: ${error.message}`);
+    console.error('Erro ao enviar mensagem WhatsApp:', error);
+    throw new Error('Falha ao enviar mensagem WhatsApp');
   }
-};
+}
 
-export const generateWhatsAppQR = async () => {
+export async function checkWhatsAppStatus() {
   try {
-    console.log('Iniciando geração de QR Code...');
-    await ensureAuthToken();
-    
-    const startUrl = `${WPP_URL}/api/${wppSession}/start-session`;
-    console.log('URL de início:', startUrl);
-
-    const webhookUrl = `http://${serverConfig.APP_HOST}:${serverConfig.APP_PORT}/api/webhook`;
-    console.log('Webhook URL:', webhookUrl);
-
-    // Primeira tentativa: iniciar sessão e obter QR code
-    const startResponse = await axios.post(startUrl, {
-      webhook: webhookUrl,
-      waitQrCode: true
-    }, {
-      headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    console.log('Resposta do início da sessão:', startResponse.data);
-
-    // Se já estiver conectado, retorna imediatamente
-    if (startResponse.data.status === 'CONNECTED') {
-      return { status: 'CONNECTED' };
-    }
-
-    // Se temos um QR code na resposta inicial
-    if (startResponse.data.qrcode) {
-      const qrcode = startResponse.data.qrcode;
-      // Garante que o QR code tenha o prefixo correto
-      const formattedQrcode = qrcode.startsWith('data:image/png;base64,') 
-        ? qrcode 
-        : `data:image/png;base64,${qrcode}`;
-      
-      return {
-        status: 'qrcode',
-        qrcode: formattedQrcode,
-        urlcode: startResponse.data.urlcode || null,
-        session: wppSession
-      };
-    }
-
-    // Segunda tentativa: solicitar QR code específico
-    console.log('Solicitando QR Code específico...');
-    const qrUrl = `${WPP_URL}/api/${wppSession}/qrcode-session`;
-    
-    const qrResponse = await axios.get(qrUrl, {
-      headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!qrResponse.data.qrcode) {
-      throw new Error('QR Code não retornado pelo servidor');
-    }
-
-    const qrcode = qrResponse.data.qrcode;
-    // Garante que o QR code tenha o prefixo correto
-    const formattedQrcode = qrcode.startsWith('data:image/png;base64,') 
-      ? qrcode 
-      : `data:image/png;base64,${qrcode}`;
-
-    return {
-      status: 'qrcode',
-      qrcode: formattedQrcode,
-      session: wppSession
-    };
+    const response = await axios.get('http://localhost:3005/api/whatsapp/status');
+    return response.data;
   } catch (error) {
-    console.error('Erro detalhado ao gerar QR Code:', {
-      message: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      url: error.config?.url,
-      method: error.config?.method,
-      headers: error.config?.headers
-    });
-    throw new Error(`Erro ao gerar QR Code: ${error.message}`);
+    console.error('Erro ao verificar status do WhatsApp:', error);
+    throw new Error('Falha ao verificar status do WhatsApp');
   }
-};
+}
 
-export const sendWhatsAppMessage = async (mensagem, grupo) => {
+export async function generateWhatsAppQR() {
   try {
-    await ensureAuthToken();
-
-    const grupos = WHATSAPP_GROUPS[grupo] || [];
-    
-    if (grupos.length === 0) {
-      throw new Error(`Nenhum grupo configurado para o tipo: ${grupo}`);
-    }
-
-    const promises = grupos.map(async (phoneNumber) => {
-      const response = await axios.post(
-        `${WPP_URL}/api/${wppSession}/send-message`,
-        {
-          phone: phoneNumber,
-          message: mensagem,
-          isGroup: phoneNumber.includes('@g.us')
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${wppToken}`
-          }
-        }
-      );
-      return response.data;
-    });
-
-    const results = await Promise.all(promises);
-    return { success: true, results };
+    const response = await axios.get('http://localhost:3005/api/whatsapp/qr');
+    return response.data;
   } catch (error) {
-    console.error('Erro ao enviar mensagem:', error);
-    throw new Error(`Erro ao enviar mensagem WhatsApp: ${error.message}`);
+    console.error('Erro ao gerar QR Code:', error);
+    throw new Error('Falha ao gerar QR Code do WhatsApp');
   }
-};
+}
 
 async function zabbixRequest(method, params) {
   const token = await getZabbixToken();

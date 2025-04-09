@@ -29,21 +29,6 @@ async function loadPhones() {
   }
 }
 
-async function sendWhatsAppMessage(phone, message) {
-  try {
-    console.log(`Enviando mensagem para ${phone}: ${message}`);
-    const response = await axios.post('http://localhost:3005/api/whatsapp/send', {
-      phone: phone.replace('+', ''),
-      message
-    });
-    console.log('Mensagem enviada com sucesso:', response.data);
-    return true;
-  } catch (error) {
-    console.error('Erro ao enviar mensagem:', error.message);
-    return false;
-  }
-}
-
 async function notifyAlert(alert) {
   try {
     const phones = await loadPhones();
@@ -67,7 +52,7 @@ async function notifyAlert(alert) {
     console.log(`Enviando alerta ${severity} para ${targetPhones.length} números`);
 
     for (const phone of targetPhones) {
-      await sendWhatsAppMessage(phone, message);
+      await sendWhatsAppMessage(message, phone.replace('+', ''));
     }
   } catch (error) {
     console.error('Erro ao notificar alerta:', error);
@@ -80,16 +65,19 @@ router.get('/token', async (req, res) => {
     const token = await getZabbixToken();
     res.json({ token });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Erro ao obter token:', error);
+    res.status(500).json({ error: 'Erro ao obter token do Zabbix' });
   }
 });
 
 // Rota para obter alertas do Zabbix
 router.get('/alerta', async (req, res) => {
   try {
-    res.json(alertasRecebidos);
+    const alertas = await getAlertas();
+    res.json(alertas);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Erro ao obter alertas:', error);
+    res.status(500).json({ error: 'Erro ao obter alertas' });
   }
 });
 
