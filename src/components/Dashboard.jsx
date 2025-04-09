@@ -136,17 +136,27 @@ export default function Dashboard() {
   }, [fetchAlerts, checkWhatsAppStatus]);
 
   const handleConnect = async () => {
-    console.log('handleConnect called');
-    setShowQrModal(true);
     try {
+      setShowQrModal(true);
+      setLoading(true);
+      setError(null);
+
       const response = await axios.get('/api/whatsapp/qr');
-      console.log('QR code response:', response.data);
-      setQrCode(response.data.qr);
-      setWhatsappStatus('connecting');
-    } catch (err) {
-      console.error('Error generating QR code:', err);
-      setError('Erro ao gerar QR Code');
-      setShowQrModal(false);
+      console.log('Resposta do QR:', response.data);
+
+      if (response.data.status === 'CONNECTED') {
+        setWhatsappStatus('CONNECTED');
+        setShowQrModal(false);
+      } else if (response.data.qrcode) {
+        setQrCode(response.data.qrcode);
+      } else {
+        throw new Error('QR Code não recebido');
+      }
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+      setError('Erro ao gerar QR Code: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,116 +186,97 @@ export default function Dashboard() {
 
   console.log('Rendering main dashboard content');
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800">Alertas</h2>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">WhatsApp Status:</span>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              whatsappStatus === 'connected' ? 'bg-green-100 text-green-800' :
-              whatsappStatus === 'disconnected' ? 'bg-red-100 text-red-800' :
-              'bg-yellow-100 text-yellow-800'
-            }`}>
-              {whatsappStatus === 'connected' ? 'Conectado' :
-               whatsappStatus === 'disconnected' ? 'Desconectado' : 'Conectando...'}
-            </span>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      
+      {/* Status do WhatsApp e botão de conexão */}
+      <div className="mb-4 p-4 bg-white rounded shadow">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Status do WhatsApp</h2>
+            <p className={`mt-2 ${whatsappStatus === 'CONNECTED' ? 'text-green-600' : 'text-red-600'}`}>
+              {whatsappStatus === 'CONNECTED' ? 'Conectado' : 'Desconectado'}
+            </p>
           </div>
           <button
             onClick={handleConnect}
-            disabled={whatsappStatus === 'connected'}
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              whatsappStatus === 'connected'
-                ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            disabled={loading}
           >
-            Conectar WhatsApp
+            {loading ? 'Conectando...' : 'Conectar WhatsApp'}
           </button>
         </div>
       </div>
 
-      {alerts.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-600">Nenhum alerta encontrado.</p>
-        </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {alerts.map((alert, index) => (
-            <div
-              key={index}
-              className="bg-white shadow rounded-lg p-6 space-y-4"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">{alert.host}</h3>
-                  <p className="text-sm text-gray-500">Trigger ID: {alert.triggerId}</p>
-                </div>
-                <span className="text-sm text-gray-500">
-                  {formatDate(alert.timestamp)}
-                </span>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Mensagem:</p>
-                  <p className="mt-1 text-sm text-gray-900">{alert.mensagem}</p>
-                </div>
-                {alert.aiResponse && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Análise IA:</p>
-                    <p className="mt-1 text-sm text-gray-900">{alert.aiResponse}</p>
-                  </div>
-                )}
-                {alert.whatsappStatus && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Status WhatsApp:</span>
-                    {alert.whatsappStatus === 'success' ? (
-                      <span className="text-green-600">✓ Enviado</span>
-                    ) : (
-                      <span className="text-red-600">✗ Falha no envio</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
+      {/* Modal do QR Code */}
       {showQrModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Conectar WhatsApp</h2>
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold">Conectar WhatsApp</h3>
               <button
                 onClick={() => setShowQrModal(false)}
                 className="text-gray-500 hover:text-gray-700"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
-            <div className="flex flex-col items-center justify-center">
-              {qrCode ? (
-                <img
-                  src={qrCode}
-                  alt="WhatsApp QR Code"
-                  className="w-64 h-64 mb-4"
-                />
-              ) : (
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-                  <p className="text-gray-600">Gerando QR Code...</p>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-col items-center">
+              {loading ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
                 </div>
+              ) : qrCode ? (
+                <div className="flex flex-col items-center">
+                  <img
+                    src={`data:image/png;base64,${qrCode}`}
+                    alt="QR Code"
+                    className="w-64 h-64"
+                  />
+                  <p className="mt-4 text-sm text-gray-600 text-center">
+                    Escaneie o QR Code com seu WhatsApp para conectar
+                  </p>
+                </div>
+              ) : (
+                <p className="text-gray-600">Aguardando QR Code...</p>
               )}
-              <p className="text-center text-gray-600 mt-4">
-                Escaneie o QR Code com seu WhatsApp para conectar
-              </p>
             </div>
           </div>
         </div>
       )}
+
+      {/* Lista de Alertas */}
+      <div className="bg-white rounded shadow p-4">
+        <h2 className="text-lg font-semibold mb-4">Alertas Recentes</h2>
+        {loading ? (
+          <div className="flex justify-center p-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : error ? (
+          <div className="text-red-600 p-4">{error}</div>
+        ) : alerts.length === 0 ? (
+          <p className="text-gray-600">Nenhum alerta encontrado</p>
+        ) : (
+          <div className="space-y-4">
+            {alerts.map((alert, index) => (
+              <div key={index} className="border p-4 rounded">
+                <h3 className="font-semibold">{alert.host}</h3>
+                <p className="text-gray-600">{alert.message}</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {new Date(alert.timestamp).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Configuração centralizada da aplicação
 export const config = {
   // Configurações do servidor
@@ -5,15 +8,15 @@ export const config = {
   NODE_ENV: process.env.NODE_ENV || 'development',
 
   // Configurações do Zabbix
-  ZABBIX_URL: process.env.ZABBIX_URL || 'http://10.0.0.11/api_jsonrpc.php',
+  ZABBIX_URL: process.env.ZABBIX_URL || 'http://localhost/api_jsonrpc.php',
   ZABBIX_USER: process.env.ZABBIX_USER || 'Admin',
-  ZABBIX_PASSWORD: process.env.ZABBIX_PASSWORD || '540298cb',
+  ZABBIX_PASSWORD: process.env.ZABBIX_PASSWORD || 'zabbix',
 
   // Configurações do OpenAI
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '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',
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
 
   // Configurações do WhatsApp
-  WPP_URL: process.env.WPP_URL || 'http://10.0.0.11:21465',
+  WPP_URL: process.env.WPP_URL || 'http://localhost:21465',
   WPP_SECRET_KEY: process.env.WPP_SECRET_KEY || 'ERIONETOKEN@2025',
 
   // Configurações de autenticação
@@ -25,5 +28,14 @@ export const config = {
     CRITICO: ['5511999999999@g.us'],
     ALERTA: ['5511988888888@g.us'],
     INFO: ['5511977777777@g.us']
+  },
+
+  APP_HOST: process.env.APP_HOST || 'localhost',
+  APP_PORT: process.env.APP_PORT || 3001,
+
+  zabbix: {
+    url: process.env.ZABBIX_URL || 'http://localhost',
+    user: process.env.ZABBIX_USER || 'Admin',
+    password: process.env.ZABBIX_PASSWORD || 'zabbix'
   }
 }; 
