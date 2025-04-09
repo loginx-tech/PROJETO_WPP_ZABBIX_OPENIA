@@ -210,7 +210,7 @@ export const checkWhatsAppStatus = async (req, res) => {
     }
 
     // Se precisar de QR code ou estiver desconectado
-    if (['DISCONNECTED', 'CLOSED', 'UNDEFINED'].includes(status)) {
+    if (['DISCONNECTED', 'CLOSED', 'UNDEFINED', 'INITIALIZING'].includes(status)) {
       // Primeiro, tenta limpar a sessão anterior
       try {
         const closeUrl = `${WPP_URL}/api/${wppSession}/close-session`;
@@ -374,7 +374,14 @@ export const generateWhatsAppQR = async (req, res) => {
     console.log('Iniciando nova sessão para obter QR code:', startSessionUrl);
     
     const startResponse = await axios.post(startSessionUrl, {
-      waitQrCode: true
+      waitQrCode: true,
+      browserArgs: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu'
+      ]
     }, {
       headers: {
         'Authorization': `Bearer ${wppToken}`,
