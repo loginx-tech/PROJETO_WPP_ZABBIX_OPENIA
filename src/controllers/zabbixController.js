@@ -186,8 +186,8 @@ export const checkWhatsAppStatus = async (req, res) => {
     }
 
     // Se a resposta contiver um código QR diretamente
-    if (response.data.code) {
-      const qrCode = response.data.code;
+    if (response.data.qrcode) {
+      const qrCode = response.data.qrcode;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
         : `data:image/png;base64,${qrCode}`;
@@ -250,14 +250,16 @@ export const checkWhatsAppStatus = async (req, res) => {
           }
         });
 
+        console.log('Start session response:', startResponse.data);
+
         // Verifica se a resposta é válida
         if (!startResponse.data) {
           throw new Error('Resposta inválida ao iniciar sessão');
         }
 
         // Verifica se a resposta contém o QR code
-        if (startResponse.data.code) {
-          const qrCode = startResponse.data.code;
+        if (startResponse.data.qrcode) {
+          const qrCode = startResponse.data.qrcode;
           const qrCodeImage = qrCode.startsWith('data:image') 
             ? qrCode 
             : `data:image/png;base64,${qrCode}`;
@@ -280,13 +282,15 @@ export const checkWhatsAppStatus = async (req, res) => {
           }
         });
 
+        console.log('New status response:', newStatusResponse.data);
+
         // Verifica se a resposta é válida
         if (!newStatusResponse.data) {
           throw new Error('Resposta inválida ao verificar status');
         }
 
-        if (newStatusResponse.data.code) {
-          const qrCode = newStatusResponse.data.code;
+        if (newStatusResponse.data.qrcode) {
+          const qrCode = newStatusResponse.data.qrcode;
           const qrCodeImage = qrCode.startsWith('data:image') 
             ? qrCode 
             : `data:image/png;base64,${qrCode}`;
@@ -357,8 +361,8 @@ export const generateWhatsAppQR = async (req, res) => {
     }
 
     // Se já tiver um QR code no status
-    if (statusResponse.data.code) {
-      const qrCode = statusResponse.data.code;
+    if (statusResponse.data.qrcode) {
+      const qrCode = statusResponse.data.qrcode;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
         : `data:image/png;base64,${qrCode}`;
@@ -398,8 +402,8 @@ export const generateWhatsAppQR = async (req, res) => {
     }
 
     // Se a resposta já contiver o QR code
-    if (startResponse.data.code) {
-      const qrCode = startResponse.data.code;
+    if (startResponse.data.qrcode) {
+      const qrCode = startResponse.data.qrcode;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
         : `data:image/png;base64,${qrCode}`;
@@ -429,8 +433,8 @@ export const generateWhatsAppQR = async (req, res) => {
       throw new Error('Resposta inválida ao verificar status');
     }
 
-    if (newStatusResponse.data.code) {
-      const qrCode = newStatusResponse.data.code;
+    if (newStatusResponse.data.qrcode) {
+      const qrCode = newStatusResponse.data.qrcode;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
         : `data:image/png;base64,${qrCode}`;
