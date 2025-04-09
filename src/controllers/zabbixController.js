@@ -79,7 +79,7 @@ export const getAlertas = async () => {
 
 export const checkWhatsAppStatus = async () => {
   try {
-    const response = await axios.get(`${config.WPP_URL}/api/status`, {
+    const response = await axios.get(`${config.WPP_URL}/api/session/status`, {
       headers: {
         'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
       }
@@ -93,7 +93,7 @@ export const checkWhatsAppStatus = async () => {
 export const generateWhatsAppQR = async () => {
   try {
     // Primeiro, inicia a sessão
-    const startResponse = await axios.post(`${config.WPP_URL}/api/start-session`, {}, {
+    const startResponse = await axios.post(`${config.WPP_URL}/api/session/start`, {}, {
       headers: {
         'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
       }
@@ -104,7 +104,7 @@ export const generateWhatsAppQR = async () => {
     }
 
     // Se não estiver conectado, solicita o QR Code
-    const qrResponse = await axios.get(`${config.WPP_URL}/api/qr-code`, {
+    const qrResponse = await axios.get(`${config.WPP_URL}/api/session/qr-code`, {
       headers: {
         'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
       }
@@ -125,9 +125,13 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
     }
 
     const promises = grupos.map(async (phoneNumber) => {
-      const response = await axios.post(`${config.WPP_URL}/api/send-message`, {
-        phone: phoneNumber,
-        message: mensagem
+      const response = await axios.post(`${config.WPP_URL}/api/message/text`, {
+        number: phoneNumber,
+        options: {
+          delay: 1200,
+          presence: "composing"
+        },
+        textMessage: mensagem
       }, {
         headers: {
           'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
