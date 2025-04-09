@@ -179,24 +179,24 @@ export const checkWhatsAppStatus = async (req, res) => {
     });
     
     console.log('WhatsApp status response:', response.data);
-    const status = response.data?.status?.toUpperCase() || 'DISCONNECTED';
 
-    // Se o status for QR e tiver o código no response, retorna imediatamente
-    if (status === 'QR' || status === 'QRCODE') {
-      const qrCode = response.data.qrcode || response.data.code;
-      if (qrCode) {
-        const qrCodeImage = qrCode.startsWith('data:image') 
-          ? qrCode 
-          : `data:image/png;base64,${qrCode}`;
-        
-        return res.json({
-          status: 'success',
-          qrcode: qrCodeImage
-        });
-      }
+    // Se a resposta contiver um código QR diretamente
+    if (response.data?.code) {
+      const qrCode = response.data.code;
+      const qrCodeImage = qrCode.startsWith('data:image') 
+        ? qrCode 
+        : `data:image/png;base64,${qrCode}`;
+      
+      return res.json({
+        status: 'success',
+        qrcode: qrCodeImage
+      });
     }
 
-    // Se estiver conectado, retorna o status
+    // Se a resposta contiver o status
+    const status = response.data?.status?.toUpperCase() || 'DISCONNECTED';
+
+    // Se estiver conectado
     if (status === 'CONNECTED') {
       return res.json({
         status: 'success',
@@ -204,8 +204,8 @@ export const checkWhatsAppStatus = async (req, res) => {
       });
     }
 
-    // Se estiver fechado ou indefinido, tenta iniciar uma nova sessão sem gerar novo token
-    if (['CLOSED', 'UNDEFINED'].includes(status)) {
+    // Se precisar de QR code ou estiver desconectado
+    if (['DISCONNECTED', 'CLOSED', 'UNDEFINED'].includes(status)) {
       const startSessionUrl = `${WPP_URL}/api/${wppSession}/start-session`;
       console.log('Iniciando nova sessão:', startSessionUrl);
       
@@ -220,9 +220,9 @@ export const checkWhatsAppStatus = async (req, res) => {
           }
         });
 
-        // Se a resposta do start-session já incluir o QR code, retorna ele
-        if (startResponse.data?.qrcode || startResponse.data?.code) {
-          const qrCode = startResponse.data.qrcode || startResponse.data.code;
+        // Verifica se a resposta contém o QR code
+        if (startResponse.data?.code) {
+          const qrCode = startResponse.data.code;
           const qrCodeImage = qrCode.startsWith('data:image') 
             ? qrCode 
             : `data:image/png;base64,${qrCode}`;
@@ -245,8 +245,8 @@ export const checkWhatsAppStatus = async (req, res) => {
           }
         });
 
-        if (newStatusResponse.data?.qrcode || newStatusResponse.data?.code) {
-          const qrCode = newStatusResponse.data.qrcode || newStatusResponse.data.code;
+        if (newStatusResponse.data?.code) {
+          const qrCode = newStatusResponse.data.code;
           const qrCodeImage = qrCode.startsWith('data:image') 
             ? qrCode 
             : `data:image/png;base64,${qrCode}`;
@@ -256,8 +256,19 @@ export const checkWhatsAppStatus = async (req, res) => {
             qrcode: qrCodeImage
           });
         }
+
+        // Se ainda não tiver QR code, retorna o status atual
+        return res.json({
+          status: 'success',
+          currentStatus: status,
+          message: 'Aguardando QR Code'
+        });
+
       } catch (startError) {
-        console.error('Erro ao iniciar nova sessão:', startError.response?.data || startError.message);
+        console.error('Erro ao iniciar nova sessão:', startError);
+        if (startError.response?.data) {
+          console.log('Resposta do erro:', startError.response.data);
+        }
       }
     }
 
@@ -267,10 +278,13 @@ export const checkWhatsAppStatus = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error checking WhatsApp status:', error.response?.data || error.message);
+    console.error('Error checking WhatsApp status:', error);
+    if (error.response?.data) {
+      console.log('Resposta do erro:', error.response.data);
+    }
     return res.status(500).json({ 
       error: 'Failed to check WhatsApp status',
-      details: error.response?.data || error.message 
+      details: error.message 
     });
   }
 };
@@ -289,9 +303,11 @@ export const generateWhatsAppQR = async (req, res) => {
       }
     });
 
-    // Se já tiver um QR code no status, retorna ele
-    if (statusResponse.data?.qrcode || statusResponse.data?.code) {
-      const qrCode = statusResponse.data.qrcode || statusResponse.data.code;
+    console.log('Status response:', statusResponse.data);
+
+    // Se já tiver um QR code no status
+    if (statusResponse.data?.code) {
+      const qrCode = statusResponse.data.code;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
         : `data:image/png;base64,${qrCode}`;
@@ -302,11 +318,11 @@ export const generateWhatsAppQR = async (req, res) => {
       });
     }
 
-    // Se não tiver QR code, tenta iniciar uma nova sessão
+    // Se não tiver QR code, inicia uma nova sessão
     const startSessionUrl = `${WPP_URL}/api/${wppSession}/start-session`;
     console.log('Iniciando nova sessão para obter QR code:', startSessionUrl);
     
-    await axios.post(startSessionUrl, {
+    const startResponse = await axios.post(startSessionUrl, {
       waitQrCode: true
     }, {
       headers: {
@@ -315,6 +331,21 @@ export const generateWhatsAppQR = async (req, res) => {
         'Content-Type': 'application/json'
       }
     });
+
+    console.log('Start session response:', startResponse.data);
+
+    // Se a resposta já contiver o QR code
+    if (startResponse.data?.code) {
+      const qrCode = startResponse.data.code;
+      const qrCodeImage = qrCode.startsWith('data:image') 
+        ? qrCode 
+        : `data:image/png;base64,${qrCode}`;
+
+      return res.json({
+        status: 'success',
+        qrcode: qrCodeImage
+      });
+    }
 
     // Aguarda um momento para o QR code ser gerado
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -328,8 +359,10 @@ export const generateWhatsAppQR = async (req, res) => {
       }
     });
 
-    if (newStatusResponse.data?.qrcode || newStatusResponse.data?.code) {
-      const qrCode = newStatusResponse.data.qrcode || newStatusResponse.data.code;
+    console.log('New status response:', newStatusResponse.data);
+
+    if (newStatusResponse.data?.code) {
+      const qrCode = newStatusResponse.data.code;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
         : `data:image/png;base64,${qrCode}`;
@@ -340,12 +373,19 @@ export const generateWhatsAppQR = async (req, res) => {
       });
     }
 
-    throw new Error('QR code não disponível após iniciar nova sessão');
+    return res.json({
+      status: 'pending',
+      message: 'Aguardando geração do QR code'
+    });
+
   } catch (error) {
-    console.error('Error generating QR code:', error.response?.data || error.message);
+    console.error('Error generating QR code:', error);
+    if (error.response?.data) {
+      console.log('Resposta do erro:', error.response.data);
+    }
     return res.status(500).json({ 
       error: 'Failed to generate QR code',
-      details: error.response?.data || error.message 
+      details: error.message 
     });
   }
 };
