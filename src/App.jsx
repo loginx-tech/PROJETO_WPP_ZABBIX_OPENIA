@@ -19,10 +19,13 @@ function App() {
 
   const handleLogin = (e) => {
     e.preventDefault();
+    const formData = new FormData(e.target);
+    const username = formData.get('username');
+    const password = formData.get('password');
+    
     if (username === 'admin' && password === 'JasonBourne@2025') {
       setIsAuthenticated(true);
       setError('');
-      // Salva um token simples no localStorage
       localStorage.setItem('authToken', 'authenticated');
     } else {
       setError('Credenciais inválidas');
