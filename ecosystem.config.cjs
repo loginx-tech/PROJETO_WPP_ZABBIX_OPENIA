@@ -2,7 +2,7 @@ module.exports = {
   apps: [{
     name: "zabbix-whatsapp-ia",
     script: "npm",
-    args: "start",
+    args: "run prod",
     cwd: "/opt/PROJETO_WPP_ZABBIX_OPENIA",
     watch: false,
     env: {
