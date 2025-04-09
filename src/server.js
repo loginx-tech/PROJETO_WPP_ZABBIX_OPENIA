@@ -27,17 +27,6 @@ app.use('/api', zabbixRoutes);
 // Serve static files from the React app
 app.use(express.static(path.join(rootDir, 'dist')));
 
-// Serve assets with correct MIME types
-app.use('/assets', express.static(path.join(rootDir, 'dist/assets'), {
-  setHeaders: (res, path) => {
-    if (path.endsWith('.js')) {
-      res.setHeader('Content-Type', 'application/javascript');
-    } else if (path.endsWith('.css')) {
-      res.setHeader('Content-Type', 'text/css');
-    }
-  }
-}));
-
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 app.get('*', (req, res) => {

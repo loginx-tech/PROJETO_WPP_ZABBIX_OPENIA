@@ -6,14 +6,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
-    manifest: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html')
-      }
-    }
+    emptyOutDir: true
   },
   server: {
     proxy: {
@@ -24,10 +17,6 @@ export default defineConfig({
     },
   },
   resolve: {
-    extensions: ['.js', '.jsx', '.json'],
-    alias: {
-      '@': path.resolve(__dirname, './src')
-    }
-  },
-  base: './'
+    extensions: ['.js', '.jsx', '.json']
+  }
 }) 
