@@ -40,29 +40,13 @@ export default function Dashboard() {
   const fetchAlerts = useCallback(async () => {
     console.log('Fetching alerts...');
     try {
-      const response = await axios.get('/api/alerta', {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        validateStatus: (status) => {
-          return status >= 200 && status < 300;
-        }
-      });
-
-      // Validar se a resposta é JSON
-      if (typeof response.data === 'string') {
-        console.error('Invalid response format:', response.data);
-        throw new Error('Resposta inválida do servidor');
-      }
-
+      const response = await axios.get('/api/alerta');
       console.log('Alerts response:', response.data);
       setAlerts(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching alerts:', err);
       setError(err.message || 'Erro ao carregar alertas');
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
     }
   }, []);
@@ -70,24 +54,9 @@ export default function Dashboard() {
   const checkWhatsAppStatus = useCallback(async () => {
     console.log('Checking WhatsApp status...');
     try {
-      const response = await axios.get('/api/whatsapp/status', {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        validateStatus: (status) => {
-          return status >= 200 && status < 300;
-        }
-      });
-
-      // Validar se a resposta é JSON
-      if (typeof response.data === 'string' || !response.data.status) {
-        console.error('Invalid status response format:', response.data);
-        throw new Error('Resposta inválida do servidor');
-      }
-
+      const response = await axios.get('/api/whatsapp/status');
       console.log('WhatsApp status response:', response.data);
-      setWhatsappStatus(response.data.status);
+      setWhatsappStatus(response.data.status || 'disconnected');
     } catch (err) {
       console.error('Error checking WhatsApp status:', err);
       setWhatsappStatus('disconnected');
@@ -95,39 +64,23 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    console.log('Dashboard useEffect running');
     let mounted = true;
 
     const loadData = async () => {
-      console.log('loadData function called, mounted:', mounted);
       if (mounted) {
-        try {
-          await Promise.all([
-            fetchAlerts(),
-            checkWhatsAppStatus()
-          ]);
-          console.log('Initial data load complete');
-        } catch (error) {
-          console.error('Error in initial data load:', error);
-        }
+        await Promise.all([
+          fetchAlerts(),
+          checkWhatsAppStatus()
+        ]);
       }
     };
 
     loadData();
 
-    // Aumentando o intervalo para 2 minutos
-    const alertsInterval = setInterval(() => {
-      console.log('Alerts interval triggered');
-      fetchAlerts();
-    }, 120000);
-
-    const statusInterval = setInterval(() => {
-      console.log('Status interval triggered');
-      checkWhatsAppStatus();
-    }, 120000);
+    const alertsInterval = setInterval(fetchAlerts, 120000);
+    const statusInterval = setInterval(checkWhatsAppStatus, 120000);
 
     return () => {
-      console.log('Dashboard cleanup running');
       mounted = false;
       clearInterval(alertsInterval);
       clearInterval(statusInterval);
@@ -139,21 +92,27 @@ export default function Dashboard() {
       setShowQrModal(true);
       setLoading(true);
       setError(null);
+      setQrCode(null);
 
       const response = await axios.get('/api/whatsapp/qr');
-      console.log('Resposta do QR:', response.data);
+      console.log('QR code response:', response.data);
 
       if (response.data.status === 'CONNECTED') {
         setWhatsappStatus('CONNECTED');
         setShowQrModal(false);
       } else if (response.data.qrcode) {
-        setQrCode(response.data.qrcode);
+        // Verifica se o QR code é uma string base64 válida
+        if (typeof response.data.qrcode === 'string' && response.data.qrcode.length > 0) {
+          setQrCode(response.data.qrcode);
+        } else {
+          throw new Error('QR Code inválido recebido do servidor');
+        }
       } else {
-        throw new Error('QR Code não recebido');
+        throw new Error('QR Code não recebido do servidor');
       }
     } catch (error) {
       console.error('Erro ao gerar QR Code:', error);
-      setError('Erro ao gerar QR Code: ' + error.message);
+      setError('Erro ao gerar QR Code: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -199,8 +158,8 @@ export default function Dashboard() {
           </div>
           <button
             onClick={handleConnect}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            disabled={loading}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300"
+            disabled={loading || whatsappStatus === 'CONNECTED'}
           >
             {loading ? 'Conectando...' : 'Conectar WhatsApp'}
           </button>
@@ -210,7 +169,7 @@ export default function Dashboard() {
       {/* Modal do QR Code */}
       {showQrModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Conectar WhatsApp</h3>
               <button
@@ -227,7 +186,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center p-4">
               {loading ? (
                 <div className="flex items-center justify-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -236,8 +195,13 @@ export default function Dashboard() {
                 <div className="flex flex-col items-center">
                   <img
                     src={`data:image/png;base64,${qrCode}`}
-                    alt="QR Code"
+                    alt="QR Code do WhatsApp"
                     className="w-64 h-64"
+                    onError={(e) => {
+                      console.error('Erro ao carregar QR code');
+                      setError('Erro ao exibir QR Code');
+                      e.target.style.display = 'none';
+                    }}
                   />
                   <p className="mt-4 text-sm text-gray-600 text-center">
                     Escaneie o QR Code com seu WhatsApp para conectar
