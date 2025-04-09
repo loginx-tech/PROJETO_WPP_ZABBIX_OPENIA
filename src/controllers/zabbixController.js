@@ -40,24 +40,26 @@ let wppAuthToken = null;
 async function generateAuthToken() {
   try {
     console.log('Tentando gerar token de autorização...');
-    console.log('WPP_URL:', config.WPP_URL);
-    console.log('WPP_SECRET_KEY:', config.WPP_SECRET_KEY);
     
+    // URL correta conforme documentação
     const url = `${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/generate-token`;
     console.log('URL completa:', url);
     
     const data = {
-      session: config.WPP_SECRET_KEY,
-      secretKey: config.WPP_SECRET_KEY
+      session: config.WPP_SECRET_KEY
     };
     console.log('Dados enviados:', JSON.stringify(data, null, 2));
 
-    const response = await axios.post(url, data);
+    const response = await axios.post(url);
     console.log('Resposta da API:', JSON.stringify(response.data, null, 2));
     
-    wppAuthToken = response.data.token;
-    console.log('Token gerado:', wppAuthToken);
-    return wppAuthToken;
+    if (response.data.status === 'Success') {
+      wppAuthToken = response.data.token;
+      console.log('Token gerado:', wppAuthToken);
+      return wppAuthToken;
+    } else {
+      throw new Error('Falha ao gerar token');
+    }
   } catch (error) {
     console.error('Erro detalhado ao gerar token:', {
       message: error.message,
@@ -66,8 +68,7 @@ async function generateAuthToken() {
       data: error.response?.data,
       url: error.config?.url,
       method: error.config?.method,
-      headers: error.config?.headers,
-      data: error.config?.data
+      headers: error.config?.headers
     });
     throw new Error(`Erro ao gerar token de autorização: ${error.message}`);
   }
@@ -129,13 +130,17 @@ export const getAlertas = async () => {
 
 export const checkWhatsAppStatus = async () => {
   try {
+    if (!wppAuthToken) {
+      await generateAuthToken();
+    }
+
     console.log('Verificando status do WhatsApp...');
     const url = `${config.WPP_URL}/api/status`;
     console.log('URL do status:', url);
 
     const response = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+        'Authorization': `Bearer ${wppAuthToken}`
       }
     });
     console.log('Resposta do status:', JSON.stringify(response.data, null, 2));
@@ -156,18 +161,22 @@ export const checkWhatsAppStatus = async () => {
 
 export const generateWhatsAppQR = async () => {
   try {
+    if (!wppAuthToken) {
+      await generateAuthToken();
+    }
+
     console.log('Iniciando geração de QR Code...');
     
-    console.log('Iniciando sessão...');
-    const startUrl = `${config.WPP_URL}/api/start-session`;
+    // Primeiro inicia a sessão
+    const startUrl = `${config.WPP_URL}/api/session/start`;
     console.log('URL de início:', startUrl);
 
     const startResponse = await axios.post(
       startUrl,
-      { session: "default" },
+      { session: config.WPP_SECRET_KEY },
       {
         headers: {
-          'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+          'Authorization': `Bearer ${wppAuthToken}`
         }
       }
     );
@@ -178,6 +187,7 @@ export const generateWhatsAppQR = async () => {
       return { status: 'CONNECTED' };
     }
 
+    // Se não estiver conectado, solicita o QR Code
     console.log('Solicitando QR Code...');
     const qrUrl = `${config.WPP_URL}/api/session/qr-code`;
     console.log('URL do QR Code:', qrUrl);
@@ -186,7 +196,7 @@ export const generateWhatsAppQR = async () => {
       qrUrl,
       {
         headers: {
-          'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+          'Authorization': `Bearer ${wppAuthToken}`
         }
       }
     );
@@ -200,8 +210,7 @@ export const generateWhatsAppQR = async () => {
       data: error.response?.data,
       url: error.config?.url,
       method: error.config?.method,
-      headers: error.config?.headers,
-      data: error.config?.data
+      headers: error.config?.headers
     });
     throw new Error(`Erro ao gerar QR Code: ${error.message}`);
   }
@@ -209,6 +218,10 @@ export const generateWhatsAppQR = async () => {
 
 export const sendWhatsAppMessage = async (mensagem, grupo) => {
   try {
+    if (!wppAuthToken) {
+      await generateAuthToken();
+    }
+
     const grupos = config.WHATSAPP_GROUPS[grupo] || [];
     
     if (grupos.length === 0) {
@@ -217,7 +230,7 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
 
     const promises = grupos.map(async (phoneNumber) => {
       const response = await axios.post(
-        `${config.WPP_URL}/api/send-message`,
+        `${config.WPP_URL}/api/message/text`,
         {
           number: phoneNumber,
           options: {
@@ -228,7 +241,7 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
         },
         {
           headers: {
-            'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+            'Authorization': `Bearer ${wppAuthToken}`
           }
         }
       );
@@ -238,6 +251,7 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
     const results = await Promise.all(promises);
     return { success: true, results };
   } catch (error) {
+    console.error('Erro ao enviar mensagem:', error);
     throw new Error(`Erro ao enviar mensagem WhatsApp: ${error.message}`);
   }
 };
