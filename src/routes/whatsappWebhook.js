@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import config from '../config.js';
+import { config } from '../config.js';
 import { handleZabbixAlert } from '../controllers/zabbixController.js';
 
 const router = express.Router();
