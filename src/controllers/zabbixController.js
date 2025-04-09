@@ -134,17 +134,25 @@ export async function getAlertas() {
 export async function sendWhatsAppMessage(message, phone) {
   try {
     await ensureAuthToken();
+    if (!phone.startsWith('55')) {
+      phone = '55' + phone;
+    }
+
     console.log(`Enviando mensagem para ${phone}:`, message);
     
-    const url = `${WPP_URL}/api/session/send-message/${wppSession}`;
+    const url = `${WPP_URL}/api/${wppSession}/send-message`;
     console.log('URL para envio:', url);
 
     const response = await axios.post(url, {
       phone,
-      message
+      message,
+      isGroup: false,
+      isNewsletter: false
     }, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`
+        'Authorization': `Bearer ${wppToken}`,
+        'accept': '*/*',
+        'Content-Type': 'application/json'
       }
     });
 
@@ -159,44 +167,93 @@ export async function sendWhatsAppMessage(message, phone) {
 export const checkWhatsAppStatus = async (req, res) => {
   try {
     await ensureAuthToken();
-    // Usando a mesma estrutura que funciona na geração do token
-    const url = `${WPP_URL}/api/session/status/${wppSession}`;
+    const url = `${WPP_URL}/api/${wppSession}/status-session`;
     console.log('URL para verificar status:', url);
 
     const response = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`
+        'Authorization': `Bearer ${wppToken}`,
+        'accept': '*/*',
+        'Content-Type': 'application/json'
       }
     });
     
     console.log('WhatsApp status response:', response.data);
-    return res.json({
-      status: response.data.status || 'DISCONNECTED',
-      qrcode: response.data.qrcode,
-      message: response.data.message
-    });
-  } catch (error) {
-    console.error('Error checking WhatsApp status:', error.response?.data || error.message);
-    // Se a sessão não existir, vamos gerar um novo token
-    if (error.response?.status === 404) {
+    const status = response.data.status?.toUpperCase() || 'DISCONNECTED';
+
+    // Se o status for QRCODE e tiver o código, retorna imediatamente
+    if (status === 'QRCODE' && response.data.qrcode) {
+      const qrCodeImage = response.data.qrcode.startsWith('data:image') 
+        ? response.data.qrcode 
+        : `data:image/png;base64,${response.data.qrcode}`;
+      
+      return res.json({
+        status: 'success',
+        qrcode: qrCodeImage
+      });
+    }
+
+    // Se estiver conectado, retorna o status
+    if (status === 'CONNECTED') {
+      return res.json({
+        status: 'success',
+        message: 'Conectado'
+      });
+    }
+
+    // Se estiver fechado ou indefinido, tenta iniciar uma nova sessão sem gerar novo token
+    if (['CLOSED', 'UNDEFINED'].includes(status)) {
+      const startSessionUrl = `${WPP_URL}/api/${wppSession}/start-session`;
+      console.log('Iniciando nova sessão:', startSessionUrl);
+      
       try {
-        await generateAuthToken();
-        const newResponse = await axios.get(`${WPP_URL}/api/session/status/${wppSession}`, {
+        await axios.post(startSessionUrl, {
+          waitQrCode: true
+        }, {
           headers: {
-            'Authorization': `Bearer ${wppToken}`
+            'Authorization': `Bearer ${wppToken}`,
+            'accept': '*/*',
+            'Content-Type': 'application/json'
           }
         });
-        return res.json({
-          status: newResponse.data.status || 'DISCONNECTED',
-          qrcode: newResponse.data.qrcode,
-          message: newResponse.data.message
+
+        // Após iniciar a sessão, verifica o status novamente
+        const newStatusResponse = await axios.get(url, {
+          headers: {
+            'Authorization': `Bearer ${wppToken}`,
+            'accept': '*/*',
+            'Content-Type': 'application/json'
+          }
         });
-      } catch (retryError) {
-        return res.status(500).json({
-          error: 'Failed to check status after retry',
-          details: retryError.message
-        });
+
+        if (newStatusResponse.data.qrcode) {
+          const qrCodeImage = newStatusResponse.data.qrcode.startsWith('data:image') 
+            ? newStatusResponse.data.qrcode 
+            : `data:image/png;base64,${newStatusResponse.data.qrcode}`;
+          
+          return res.json({
+            status: 'success',
+            qrcode: qrCodeImage
+          });
+        }
+      } catch (startError) {
+        console.error('Erro ao iniciar nova sessão:', startError.response?.data || startError.message);
+        // Se falhar ao iniciar a sessão, aí sim geramos um novo token
+        await generateAuthToken();
       }
+    }
+
+    return res.json({
+      status: 'success',
+      currentStatus: status
+    });
+
+  } catch (error) {
+    console.error('Error checking WhatsApp status:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      // Se o erro for de autenticação, aí sim geramos um novo token
+      await generateAuthToken();
+      return checkWhatsAppStatus(req, res);
     }
     return res.status(500).json({ 
       error: 'Failed to check WhatsApp status',
@@ -208,49 +265,71 @@ export const checkWhatsAppStatus = async (req, res) => {
 export const generateWhatsAppQR = async (req, res) => {
   try {
     await ensureAuthToken();
-    // Usando a mesma estrutura que funciona na geração do token
-    const url = `${WPP_URL}/api/session/qrcode/${wppSession}`;
+    const url = `${WPP_URL}/api/${wppSession}/qrcode-session`;
     console.log('URL para gerar QR:', url);
 
     const response = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`
+        'Authorization': `Bearer ${wppToken}`,
+        'accept': '*/*',
+        'Content-Type': 'application/json'
       }
     });
     
     console.log('QR code response:', response.data);
     
     if (response.data && response.data.qrcode) {
+      const qrCodeImage = response.data.qrcode.startsWith('data:image') 
+        ? response.data.qrcode 
+        : `data:image/png;base64,${response.data.qrcode}`;
+
       return res.json({
-        qrcode: response.data.qrcode,
-        status: 'success'
+        status: 'success',
+        qrcode: qrCodeImage
       });
-    } else {
-      throw new Error('QR code não disponível na resposta');
     }
+
+    // Se não conseguir o QR code, tenta iniciar uma nova sessão
+    const startSessionUrl = `${WPP_URL}/api/${wppSession}/start-session`;
+    console.log('Tentando iniciar nova sessão para obter QR code:', startSessionUrl);
+    
+    await axios.post(startSessionUrl, {
+      waitQrCode: true
+    }, {
+      headers: {
+        'Authorization': `Bearer ${wppToken}`,
+        'accept': '*/*',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    // Tenta obter o QR code novamente após iniciar a sessão
+    const newResponse = await axios.get(url, {
+      headers: {
+        'Authorization': `Bearer ${wppToken}`,
+        'accept': '*/*',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (newResponse.data && newResponse.data.qrcode) {
+      const qrCodeImage = newResponse.data.qrcode.startsWith('data:image') 
+        ? newResponse.data.qrcode 
+        : `data:image/png;base64,${newResponse.data.qrcode}`;
+
+      return res.json({
+        status: 'success',
+        qrcode: qrCodeImage
+      });
+    }
+
+    throw new Error('QR code não disponível na resposta');
   } catch (error) {
     console.error('Error generating QR code:', error.response?.data || error.message);
-    if (error.response?.status === 404) {
-      try {
-        await generateAuthToken();
-        const newResponse = await axios.get(`${WPP_URL}/api/session/qrcode/${wppSession}`, {
-          headers: {
-            'Authorization': `Bearer ${wppToken}`
-          }
-        });
-        
-        if (newResponse.data && newResponse.data.qrcode) {
-          return res.json({
-            qrcode: newResponse.data.qrcode,
-            status: 'success'
-          });
-        }
-      } catch (retryError) {
-        return res.status(500).json({
-          error: 'Failed to generate QR code after retry',
-          details: retryError.message
-        });
-      }
+    if (error.response?.status === 401) {
+      // Se o erro for de autenticação, aí sim geramos um novo token
+      await generateAuthToken();
+      return generateWhatsAppQR(req, res);
     }
     return res.status(500).json({ 
       error: 'Failed to generate QR code',
