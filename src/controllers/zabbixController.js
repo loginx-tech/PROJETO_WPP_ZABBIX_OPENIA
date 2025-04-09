@@ -147,25 +147,45 @@ export async function sendWhatsAppMessage(message, phone) {
   }
 }
 
-export async function checkWhatsAppStatus() {
+export const checkWhatsAppStatus = async (req, res) => {
   try {
-    const response = await axios.get('http://localhost:3005/api/whatsapp/status');
-    return response.data;
-  } catch (error) {
-    console.error('Erro ao verificar status do WhatsApp:', error);
-    throw new Error('Falha ao verificar status do WhatsApp');
-  }
-}
+    const response = await axios.get(`${WPP_URL}/api/${wppSession}/status`, {
+      headers: {
+        'Authorization': `Bearer ${WPP_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-export async function generateWhatsAppQR() {
-  try {
-    const response = await axios.get('http://localhost:3005/api/whatsapp/qr');
-    return response.data;
+    console.log('WhatsApp status response:', response.data);
+    return res.json(response.data);
   } catch (error) {
-    console.error('Erro ao gerar QR Code:', error);
-    throw new Error('Falha ao gerar QR Code do WhatsApp');
+    console.error('Error checking WhatsApp status:', error.message);
+    return res.status(500).json({ 
+      error: 'Failed to check WhatsApp status',
+      details: error.message 
+    });
   }
-}
+};
+
+export const generateWhatsAppQR = async (req, res) => {
+  try {
+    const response = await axios.get(`${WPP_URL}/api/${wppSession}/qr`, {
+      headers: {
+        'Authorization': `Bearer ${WPP_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('QR code generated successfully');
+    return res.json(response.data);
+  } catch (error) {
+    console.error('Error generating QR code:', error.message);
+    return res.status(500).json({ 
+      error: 'Failed to generate QR code',
+      details: error.message 
+    });
+  }
+};
 
 async function zabbixRequest(method, params) {
   const token = await getZabbixToken();

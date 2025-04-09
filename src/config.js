@@ -13,6 +13,7 @@ export const config = {
   // Configurações do WhatsApp
   WPP_URL: process.env.WPP_URL || 'http://10.0.0.11:21465',
   WPP_SECRET_KEY: process.env.WPP_SECRET_KEY || 'My-Secret-Key',
+  WPP_SESSION: process.env.WPP_SESSION || 'zabbix-session',
 
   // Grupos do WhatsApp
   WHATSAPP_GROUPS: {
