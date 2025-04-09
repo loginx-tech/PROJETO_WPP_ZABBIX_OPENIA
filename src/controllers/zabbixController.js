@@ -1,17 +1,19 @@
 import axios from 'axios';
 import config from '../config.js';
 import OpenAI from 'openai';
-import { logs } from '../routes/zabbix.js';
 
 // Log das variáveis de ambiente para debug
 console.log('Environment variables:');
 console.log('ZABBIX_URL:', config.ZABBIX_URL);
 console.log('WPP_URL:', config.WPP_URL);
 
-// Inicializa o OpenAI
-const openai = new OpenAI({
-  apiKey: config.OPENAI_API_KEY
-});
+// Inicializa o OpenAI apenas se a chave estiver disponível
+let openai = null;
+if (config.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: config.OPENAI_API_KEY
+  });
+}
 
 // Configuração dos grupos do WhatsApp
 const WHATSAPP_GROUPS = {
@@ -327,8 +329,6 @@ export async function handleZabbixAlert(req, res) {
     if (aiResponse) {
       log.aiResponse = aiResponse;
     }
-
-    logs.push(log);
 
     res.json({ 
       success: true, 

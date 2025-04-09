@@ -19,13 +19,11 @@ const config = {
   WPP_SESSION: process.env.WPP_SESSION || 'zabbix',
 
   // Grupos do WhatsApp
-  WHATSAPP_GROUPS: {
-    CRITICO: process.env.WHATSAPP_GROUP_CRITICO || 'CRITICO',
-    ALERTA: process.env.WHATSAPP_GROUP_ALERTA || 'ALERTA',
-    INFO: process.env.WHATSAPP_GROUP_INFO || 'INFO'
-  },
+  WHATSAPP_GROUP_ZABBIX: process.env.WHATSAPP_GROUP_ZABBIX || 'ZABBIX',
+  WHATSAPP_GROUP_SUPORTE: process.env.WHATSAPP_GROUP_SUPORTE || 'SUPORTE',
 
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  // Configuração da OpenAI
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
 };
 
 export default config; 
