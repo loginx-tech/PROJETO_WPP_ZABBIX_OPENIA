@@ -13,11 +13,18 @@ const __dirname = dirname(__filename);
 const rootDir = path.join(__dirname, '..');
 
 const app = express();
+const PORT = process.env.PORT || 3005;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Middleware para garantir respostas JSON
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -39,9 +46,35 @@ app.get('/*', (req, res) => {
   res.sendFile(path.join(rootDir, 'dist/index.html'));
 });
 
-const PORT = config.PORT || 3005;
+// Tratamento de erros
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Erro interno do servidor' });
+});
 
-app.listen(PORT, '0.0.0.0', () => {
+// Iniciar o servidor
+const server = app.listen(PORT, '0.0.0.0', (err) => {
+  if (err) {
+    console.error('Erro ao iniciar o servidor:', err);
+    process.exit(1);
+  }
   console.log(`Server is running on port ${PORT}`);
   console.log(`Static files being served from: ${path.join(rootDir, 'dist')}`);
 });
+
+// Tratamento de erros não capturados
+process.on('uncaughtException', (err) => {
+  console.error('Erro não capturado:', err);
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Promise rejection não tratada:', err);
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+export default app;
