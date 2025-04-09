@@ -133,14 +133,15 @@ export async function getAlertas() {
 
 export async function sendWhatsAppMessage(message, phone) {
   try {
+    await ensureAuthToken();
     console.log(`Enviando mensagem para ${phone}:`, message);
     
-    const response = await axios.post(`${config.WPP_URL}/api/${config.WPP_SESSION}/send-message`, {
+    const response = await axios.post(`${WPP_URL}/api/${wppSession}/send-message`, {
       phone,
       message
     }, {
       headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`,
+        'Authorization': `Bearer ${wppToken}`,
         'Content-Type': 'application/json'
       }
     });
@@ -155,9 +156,10 @@ export async function sendWhatsAppMessage(message, phone) {
 
 export const checkWhatsAppStatus = async (req, res) => {
   try {
-    const response = await axios.get(`${config.WPP_URL}/api/${config.WPP_SESSION}/status`, {
+    await ensureAuthToken();
+    const response = await axios.get(`${WPP_URL}/api/${wppSession}/status`, {
       headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`,
+        'Authorization': `Bearer ${wppToken}`,
         'Content-Type': 'application/json'
       }
     });
@@ -175,9 +177,10 @@ export const checkWhatsAppStatus = async (req, res) => {
 
 export const generateWhatsAppQR = async (req, res) => {
   try {
-    const response = await axios.get(`${config.WPP_URL}/api/${config.WPP_SESSION}/qr`, {
+    await ensureAuthToken();
+    const response = await axios.get(`${WPP_URL}/api/${wppSession}/qr`, {
       headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`,
+        'Authorization': `Bearer ${wppToken}`,
         'Content-Type': 'application/json'
       }
     });
