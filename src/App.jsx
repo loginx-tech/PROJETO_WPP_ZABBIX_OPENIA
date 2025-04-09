@@ -1,21 +1,13 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('authToken') === 'authenticated';
+  });
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    // Verifica se já existe um token de autenticação
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-  }, []);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -24,53 +16,65 @@ function App() {
     const password = formData.get('password');
     
     if (username === 'admin' && password === 'JasonBourne@2025') {
+      localStorage.setItem('authToken', 'authenticated');
       setIsAuthenticated(true);
       setError('');
-      localStorage.setItem('authToken', 'authenticated');
     } else {
       setError('Credenciais inválidas');
     }
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
     localStorage.removeItem('authToken');
+    setIsAuthenticated(false);
+  };
+
+  // Componente protegido que inclui o botão de logout
+  const ProtectedDashboard = () => {
+    return (
+      <div className="relative min-h-screen bg-gray-100">
+        <nav className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16 items-center">
+              <h1 className="text-xl font-semibold text-gray-800">Zabbix IA WhatsApp</h1>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </nav>
+        <Dashboard />
+      </div>
+    );
   };
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100">
-        <Routes>
-          <Route 
-            path="/login" 
-            element={
-              !isAuthenticated ? (
-                <Login onLogin={handleLogin} />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/" 
-            element={
-              isAuthenticated ? (
-                <div>
-                  <button
-                    onClick={handleLogout}
-                    className="absolute top-4 right-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-                  >
-                    Sair
-                  </button>
-                  <Dashboard />
-                </div>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-        </Routes>
-      </div>
+      <Routes>
+        <Route 
+          path="/login" 
+          element={
+            !isAuthenticated ? (
+              <Login onLogin={handleLogin} error={error} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          } 
+        />
+        <Route 
+          path="/" 
+          element={
+            isAuthenticated ? (
+              <ProtectedDashboard />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } 
+        />
+      </Routes>
     </Router>
   );
 }
