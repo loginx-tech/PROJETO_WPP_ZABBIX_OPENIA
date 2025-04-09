@@ -26,6 +26,9 @@ const ZABBIX_URL = config.ZABBIX_URL;
 const ZABBIX_USER = config.ZABBIX_USER;
 const ZABBIX_PASSWORD = config.ZABBIX_PASSWORD;
 
+// Array para armazenar logs
+const logs = [];
+
 // Função para gerar token de autenticação
 export const getZabbixToken = async () => {
   try {
@@ -269,83 +272,129 @@ Por favor, forneça:
 Formate a resposta de forma clara e objetiva.`;
 }
 
-export async function handleZabbixAlert(req, res) {
+// Função para processar alertas do Zabbix
+export async function handleZabbixAlert(phone, message, req = null, res = null) {
   try {
-    const { host, triggerId, mensagem } = req.body;
-
-    const triggerResult = await zabbixRequest('trigger.get', {
-      triggerids: triggerId,
-      output: 'extend',
-      selectItems: 'extend'
-    });
-
-    if (!triggerResult || triggerResult.length === 0) {
-      throw new Error('Trigger not found');
-    }
-
-    const itemId = triggerResult[0].items[0].itemid;
-
-    const history = await zabbixRequest('history.get', {
-      itemids: itemId,
-      output: 'extend',
-      sortfield: 'clock',
-      sortorder: 'DESC',
-      limit: 5
-    });
-
-    let aiResponse = '';
-    // Tenta usar OpenAI apenas se estiver disponível
-    if (openai) {
-      const prompt = generatePrompt(host, mensagem, history);
-      const completion = await openai.chat.completions.create({
-        messages: [{ role: "user", content: prompt }],
-        model: "gpt-4",
+    // Se for uma chamada direta da API (com req e res)
+    if (req && res) {
+      const { host, triggerId, mensagem } = req.body;
+      
+      // Obtém informações da trigger
+      const triggerResult = await zabbixRequest('trigger.get', {
+        triggerids: triggerId,
+        output: 'extend',
+        selectItems: 'extend'
       });
-      aiResponse = completion.choices[0].message.content;
+      
+      if (!triggerResult || triggerResult.length === 0) {
+        throw new Error('Trigger não encontrada');
+      }
+      
+      const itemId = triggerResult[0].items[0].itemid;
+      
+      // Obtém histórico do item
+      const history = await zabbixRequest('history.get', {
+        itemids: itemId,
+        output: 'extend',
+        sortfield: 'clock',
+        sortorder: 'DESC',
+        limit: 5
+      });
+      
+      let aiResponse = '';
+      // Tenta usar OpenAI apenas se estiver disponível
+      if (openai) {
+        const prompt = generatePrompt(host, mensagem, history);
+        const completion = await openai.chat.completions.create({
+          messages: [{ role: "user", content: prompt }],
+          model: "gpt-4",
+        });
+        aiResponse = completion.choices[0].message.content;
+      }
+      
+      const severity = determineAlertSeverity(mensagem);
+      const targetGroups = WHATSAPP_GROUPS[severity];
+      
+      const whatsappMessage = `🚨 *Alerta Zabbix - ${severity}*\n\n` +
+        `*Host:* ${host}\n` +
+        `*Mensagem:* ${mensagem}\n\n` +
+        (aiResponse ? `*Análise da IA:*\n${aiResponse}` : '');
+      
+      const sendResults = await Promise.all(
+        targetGroups.map(groupId => sendWhatsAppMessage(groupId, whatsappMessage))
+      );
+      
+      const log = {
+        host,
+        triggerId,
+        history,
+        severity,
+        timestamp: new Date().toISOString(),
+        recipients: targetGroups,
+        sendStatus: sendResults
+      };
+      
+      if (aiResponse) {
+        log.aiResponse = aiResponse;
+      }
+      
+      // Adiciona o log ao array de logs
+      logs.push(log);
+      
+      res.json({ 
+        success: true, 
+        message: 'Alert processed successfully',
+        severity,
+        groupsNotified: targetGroups
+      });
+    } 
+    // Se for uma chamada do webhook (apenas phone e message)
+    else {
+      console.log(`Processando mensagem do WhatsApp: ${message} de ${phone}`);
+      
+      // Adiciona o log ao array de logs
+      logs.push({
+        phone,
+        message,
+        timestamp: new Date().toISOString(),
+        type: 'webhook'
+      });
+      
+      // Aqui você pode adicionar lógica para processar mensagens do WhatsApp
+      // Por exemplo, verificar se é um comando, responder com informações, etc.
+      
+      // Exemplo: responder com uma mensagem de confirmação
+      await sendWhatsAppMessage(phone, `✅ Mensagem recebida: "${message}"`);
+      
+      return { success: true, message: 'Message processed successfully' };
     }
-
-    const severity = determineAlertSeverity(mensagem);
-    const targetGroups = WHATSAPP_GROUPS[severity];
-
-    const whatsappMessage = `🚨 *Alerta Zabbix - ${severity}*\n\n` +
-      `*Host:* ${host}\n` +
-      `*Mensagem:* ${mensagem}\n\n` +
-      (aiResponse ? `*Análise da IA:*\n${aiResponse}` : '');
-
-    const sendResults = await Promise.all(
-      targetGroups.map(groupId => sendWhatsAppMessage(groupId, whatsappMessage))
-    );
-
-    const log = {
-      host,
-      triggerId,
-      history,
-      severity,
-      timestamp: new Date().toISOString(),
-      recipients: targetGroups,
-      sendStatus: sendResults
-    };
-
-    if (aiResponse) {
-      log.aiResponse = aiResponse;
-    }
-
-    res.json({ 
-      success: true, 
-      message: 'Alert processed successfully',
-      severity,
-      groupsNotified: targetGroups
-    });
   } catch (error) {
     console.error('Error processing alert:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message,
-      details: error.response?.data || error.stack
-    });
+    
+    if (res) {
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        details: error.response?.data || error.stack
+      });
+    } else {
+      throw error;
+    }
   }
 }
 
 export function getLogs(req, res) {
-  res.json(logs);
+  try {
+    res.json({
+      status: 'success',
+      data: logs
+    });
+  } catch (error) {
+    console.error('Erro ao obter logs:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Falha ao obter logs',
+      details: error.message
+    });
+  }
 } 

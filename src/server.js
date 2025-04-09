@@ -40,14 +40,14 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = config.server.PORT;
-const HOST = config.server.HOST || '0.0.0.0';
+const PORT = config.PORT;
+const HOST = config.APP_HOST || '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Environment:', config.server.NODE_ENV);
-  console.log('Zabbix URL:', config.zabbix.ZABBIX_URL);
-  console.log('WhatsApp URL:', config.whatsapp.WPP_URL);
+  console.log('Environment:', config.NODE_ENV);
+  console.log('Zabbix URL:', config.ZABBIX_URL);
+  console.log('WhatsApp URL:', config.WPP_URL);
   console.log(`Arquivos estáticos sendo servidos de: ${path.join(__dirname, '../dist')}`);
 });
 

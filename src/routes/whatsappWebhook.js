@@ -12,28 +12,28 @@ router.post('/send', async (req, res) => {
     
     if (!phone || !message) {
       return res.status(400).json({ 
-        error: 'Phone and message are required' 
+        status: 'error',
+        message: 'Phone and message are required' 
       });
     }
 
     console.log(`Enviando mensagem para ${phone}:`, message);
 
-    const response = await axios.post(`${config.WPP_URL}/api/send-message`, {
-      number: phone.replace(/\D/g, ''), // Remove caracteres não numéricos
+    const response = await axios.post(`${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/sendText`, {
+      phone: phone.replace(/\D/g, ''), // Remove caracteres não numéricos
       message: message
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
-      }
     });
 
     console.log('Resposta do serviço de WhatsApp:', response.data);
-    res.json(response.data);
+    res.json({
+      status: 'success',
+      data: response.data
+    });
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error.response?.data || error.message);
     res.status(500).json({ 
-      error: 'Erro ao enviar mensagem',
+      status: 'error',
+      message: 'Erro ao enviar mensagem',
       details: error.response?.data || error.message
     });
   }
@@ -42,16 +42,16 @@ router.post('/send', async (req, res) => {
 // Rota para verificar status
 router.get('/status', async (req, res) => {
   try {
-    const response = await axios.get(`${config.WPP_URL}/api/status`, {
-      headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
-      }
+    const response = await axios.get(`${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/status`);
+    res.json({
+      status: 'success',
+      data: response.data
     });
-    res.json(response.data);
   } catch (error) {
     console.error('Erro ao verificar status:', error.response?.data || error.message);
     res.status(500).json({ 
-      error: 'Erro ao verificar status',
+      status: 'error',
+      message: 'Erro ao verificar status',
       details: error.response?.data || error.message
     });
   }
@@ -60,16 +60,49 @@ router.get('/status', async (req, res) => {
 // Rota para gerar QR Code
 router.get('/qr', async (req, res) => {
   try {
-    const response = await axios.get(`${config.WPP_URL}/api/qr-code`, {
-      headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+    const response = await axios.get(`${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/status`);
+    
+    if (response.data && response.data.qrcode) {
+      res.json({
+        status: 'success',
+        data: {
+          qrcode: response.data.qrcode
+        }
+      });
+    } else {
+      // Se não tiver QR code, tenta iniciar uma nova sessão
+      const startResponse = await axios.post(`${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/start`, {
+        browserArgs: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu'
+        ]
+      });
+      
+      // Aguarda um momento para o QR code ser gerado
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Verifica novamente o status
+      const newStatusResponse = await axios.get(`${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/status`);
+      
+      if (newStatusResponse.data && newStatusResponse.data.qrcode) {
+        res.json({
+          status: 'success',
+          data: {
+            qrcode: newStatusResponse.data.qrcode
+          }
+        });
+      } else {
+        throw new Error('QR Code não gerado');
       }
-    });
-    res.json(response.data);
+    }
   } catch (error) {
     console.error('Erro ao gerar QR Code:', error.response?.data || error.message);
     res.status(500).json({ 
-      error: 'Erro ao gerar QR Code',
+      status: 'error',
+      message: 'Erro ao gerar QR Code',
       details: error.response?.data || error.message
     });
   }

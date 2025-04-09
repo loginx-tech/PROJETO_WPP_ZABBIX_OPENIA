@@ -1,5 +1,5 @@
 import express from 'express';
-import { getZabbixToken, getAlertas, sendWhatsAppMessage, checkWhatsAppStatus, generateWhatsAppQR } from '../controllers/zabbixController.js';
+import { getZabbixToken, getAlertas, sendWhatsAppMessage, checkWhatsAppStatus, generateWhatsAppQR, getLogs } from '../controllers/zabbixController.js';
 import config from '../config.js';
 import axios from 'axios';
 import fs from 'fs/promises';
@@ -63,10 +63,17 @@ async function notifyAlert(alert) {
 router.get('/token', async (req, res) => {
   try {
     const token = await getZabbixToken();
-    res.json({ token });
+    res.json({
+      status: 'success',
+      data: { token }
+    });
   } catch (error) {
     console.error('Erro ao obter token:', error);
-    res.status(500).json({ error: 'Erro ao obter token do Zabbix' });
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Erro ao obter token do Zabbix',
+      details: error.message
+    });
   }
 });
 
@@ -133,10 +140,17 @@ router.post('/alerta', async (req, res) => {
     // Notifica os contatos cadastrados
     await notifyAlert(alert);
     
-    res.json({ success: true, message: 'Alerta processado com sucesso' });
+    res.json({ 
+      status: 'success',
+      message: 'Alerta processado com sucesso' 
+    });
   } catch (error) {
     console.error('Erro ao processar alerta:', error);
-    res.status(500).json({ error: 'Erro ao processar alerta' });
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Erro ao processar alerta',
+      details: error.message
+    });
   }
 });
 
@@ -166,5 +180,8 @@ router.post('/whatsapp/send', async (req, res) => {
     });
   }
 });
+
+// Rota para obter logs
+router.get('/logs', getLogs);
 
 export default router; 

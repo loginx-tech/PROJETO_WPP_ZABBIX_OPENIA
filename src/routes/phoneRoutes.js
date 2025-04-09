@@ -44,10 +44,17 @@ async function savePhones(phones) {
 router.get('/', async (req, res) => {
   try {
     const phones = await loadPhones();
-    res.json(phones);
+    res.json({
+      status: 'success',
+      data: phones
+    });
   } catch (error) {
     console.error('Error loading phones:', error);
-    res.status(500).json({ error: 'Erro ao carregar números de telefone' });
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Erro ao carregar números de telefone',
+      details: error.message
+    });
   }
 });
 
@@ -57,26 +64,42 @@ router.post('/', async (req, res) => {
     const { severity, phone } = req.body;
     
     if (!severity || !phone) {
-      return res.status(400).json({ error: 'Severity e phone são obrigatórios' });
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Severity e phone são obrigatórios' 
+      });
     }
 
     const phones = await loadPhones();
     
     if (!phones[severity]) {
-      return res.status(400).json({ error: 'Severity inválida' });
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Severity inválida' 
+      });
     }
 
     if (phones[severity].includes(phone)) {
-      return res.status(400).json({ error: 'Número já cadastrado para esta severity' });
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Número já cadastrado para esta severity' 
+      });
     }
 
     phones[severity].push(phone);
     await savePhones(phones);
     
-    res.json(phones);
+    res.json({
+      status: 'success',
+      data: phones
+    });
   } catch (error) {
     console.error('Error adding phone:', error);
-    res.status(500).json({ error: 'Erro ao adicionar número de telefone' });
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Erro ao adicionar número de telefone',
+      details: error.message
+    });
   }
 });
 
@@ -87,16 +110,26 @@ router.delete('/:severity/:phone', async (req, res) => {
     const phones = await loadPhones();
     
     if (!phones[severity]) {
-      return res.status(400).json({ error: 'Severity inválida' });
+      return res.status(400).json({ 
+        status: 'error',
+        message: 'Severity inválida' 
+      });
     }
 
     phones[severity] = phones[severity].filter(p => p !== phone);
     await savePhones(phones);
     
-    res.json(phones);
+    res.json({
+      status: 'success',
+      data: phones
+    });
   } catch (error) {
     console.error('Error removing phone:', error);
-    res.status(500).json({ error: 'Erro ao remover número de telefone' });
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Erro ao remover número de telefone',
+      details: error.message
+    });
   }
 });
 
