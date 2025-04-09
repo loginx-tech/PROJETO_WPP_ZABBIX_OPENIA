@@ -211,12 +211,37 @@ export const checkWhatsAppStatus = async (req, res) => {
 
     // Se precisar de QR code ou estiver desconectado
     if (['DISCONNECTED', 'CLOSED', 'UNDEFINED'].includes(status)) {
+      // Primeiro, tenta limpar a sessão anterior
+      try {
+        const closeUrl = `${WPP_URL}/api/${wppSession}/close-session`;
+        await axios.post(closeUrl, {}, {
+          headers: {
+            'Authorization': `Bearer ${wppToken}`,
+            'accept': '*/*',
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Sessão anterior fechada com sucesso');
+      } catch (closeError) {
+        console.log('Erro ao fechar sessão anterior:', closeError.message);
+      }
+
+      // Aguarda um momento antes de iniciar nova sessão
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       const startSessionUrl = `${WPP_URL}/api/${wppSession}/start-session`;
       console.log('Iniciando nova sessão:', startSessionUrl);
       
       try {
         const startResponse = await axios.post(startSessionUrl, {
-          waitQrCode: true
+          waitQrCode: true,
+          browserArgs: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu'
+          ]
         }, {
           headers: {
             'Authorization': `Bearer ${wppToken}`,
