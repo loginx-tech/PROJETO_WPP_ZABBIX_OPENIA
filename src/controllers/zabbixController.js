@@ -151,60 +151,73 @@ export const checkWhatsAppStatus = async () => {
 
 export const generateWhatsAppQR = async () => {
   try {
-    await ensureAuthToken();
-
     console.log('Iniciando geração de QR Code...');
+    await ensureAuthToken();
     
-    // Primeiro inicia a sessão
     const startUrl = `${WPP_URL}/api/${wppSession}/start-session`;
     console.log('URL de início:', startUrl);
 
     const webhookUrl = `http://${serverConfig.APP_HOST}:${serverConfig.APP_PORT}/api/webhook`;
     console.log('Webhook URL:', webhookUrl);
 
+    // Primeira tentativa: iniciar sessão e obter QR code
     const startResponse = await axios.post(startUrl, {
       webhook: webhookUrl,
       waitQrCode: true
     }, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`
+        'Authorization': `Bearer ${wppToken}`,
+        'Content-Type': 'application/json'
       }
     });
 
     console.log('Resposta do início da sessão:', startResponse.data);
 
+    // Se já estiver conectado, retorna imediatamente
     if (startResponse.data.status === 'CONNECTED') {
-      console.log('WhatsApp já está conectado');
       return { status: 'CONNECTED' };
     }
 
-    // Se não estiver conectado e temos um QR code na resposta, retornamos ele
+    // Se temos um QR code na resposta inicial
     if (startResponse.data.qrcode) {
-      console.log('QR Code recebido na resposta inicial');
+      const qrcode = startResponse.data.qrcode;
+      // Garante que o QR code tenha o prefixo correto
+      const formattedQrcode = qrcode.startsWith('data:image/png;base64,') 
+        ? qrcode 
+        : `data:image/png;base64,${qrcode}`;
+      
       return {
         status: 'qrcode',
-        qrcode: startResponse.data.qrcode,
-        urlcode: startResponse.data.urlcode,
+        qrcode: formattedQrcode,
+        urlcode: startResponse.data.urlcode || null,
         session: wppSession
       };
     }
 
-    // Se não tiver QR code na resposta inicial, solicita especificamente
-    console.log('Solicitando QR Code...');
+    // Segunda tentativa: solicitar QR code específico
+    console.log('Solicitando QR Code específico...');
     const qrUrl = `${WPP_URL}/api/${wppSession}/qrcode-session`;
-    console.log('URL do QR Code:', qrUrl);
-
+    
     const qrResponse = await axios.get(qrUrl, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`
+        'Authorization': `Bearer ${wppToken}`,
+        'Content-Type': 'application/json'
       }
     });
 
-    console.log('QR Code gerado com sucesso');
+    if (!qrResponse.data.qrcode) {
+      throw new Error('QR Code não retornado pelo servidor');
+    }
+
+    const qrcode = qrResponse.data.qrcode;
+    // Garante que o QR code tenha o prefixo correto
+    const formattedQrcode = qrcode.startsWith('data:image/png;base64,') 
+      ? qrcode 
+      : `data:image/png;base64,${qrcode}`;
+
     return {
       status: 'qrcode',
-      qrcode: qrResponse.data.qrcode,
-      urlcode: qrResponse.data.urlcode,
+      qrcode: formattedQrcode,
       session: wppSession
     };
   } catch (error) {
@@ -212,7 +225,10 @@ export const generateWhatsAppQR = async () => {
       message: error.message,
       status: error.response?.status,
       statusText: error.response?.statusText,
-      data: error.response?.data
+      data: error.response?.data,
+      url: error.config?.url,
+      method: error.config?.method,
+      headers: error.config?.headers
     });
     throw new Error(`Erro ao gerar QR Code: ${error.message}`);
   }

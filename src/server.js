@@ -6,6 +6,7 @@ import { dirname } from 'path';
 import { config } from './config.js';
 import zabbixRoutes from './routes/zabbixRoutes.js';
 import whatsappWebhook from './routes/whatsappWebhook.js';
+import phoneRoutes from './routes/phoneRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,7 +27,8 @@ app.use((req, res, next) => {
 
 // API Routes
 app.use('/api', zabbixRoutes);
-app.use('/api/whatsapp', whatsappWebhook);
+app.use('/api/webhook', whatsappWebhook);
+app.use('/api/phones', phoneRoutes);
 
 // Serve static files from the React app
 app.use(express.static(path.join(rootDir, 'dist')));
