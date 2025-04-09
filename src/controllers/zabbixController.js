@@ -180,8 +180,13 @@ export const checkWhatsAppStatus = async (req, res) => {
     
     console.log('WhatsApp status response:', response.data);
 
+    // Verifica se a resposta é válida
+    if (!response.data) {
+      throw new Error('Resposta inválida do servidor WhatsApp');
+    }
+
     // Se a resposta contiver um código QR diretamente
-    if (response.data?.code) {
+    if (response.data.code) {
       const qrCode = response.data.code;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
@@ -194,7 +199,7 @@ export const checkWhatsAppStatus = async (req, res) => {
     }
 
     // Se a resposta contiver o status
-    const status = response.data?.status?.toUpperCase() || 'DISCONNECTED';
+    const status = (response.data.status || 'DISCONNECTED').toUpperCase();
 
     // Se estiver conectado
     if (status === 'CONNECTED') {
@@ -220,8 +225,13 @@ export const checkWhatsAppStatus = async (req, res) => {
           }
         });
 
+        // Verifica se a resposta é válida
+        if (!startResponse.data) {
+          throw new Error('Resposta inválida ao iniciar sessão');
+        }
+
         // Verifica se a resposta contém o QR code
-        if (startResponse.data?.code) {
+        if (startResponse.data.code) {
           const qrCode = startResponse.data.code;
           const qrCodeImage = qrCode.startsWith('data:image') 
             ? qrCode 
@@ -245,7 +255,12 @@ export const checkWhatsAppStatus = async (req, res) => {
           }
         });
 
-        if (newStatusResponse.data?.code) {
+        // Verifica se a resposta é válida
+        if (!newStatusResponse.data) {
+          throw new Error('Resposta inválida ao verificar status');
+        }
+
+        if (newStatusResponse.data.code) {
           const qrCode = newStatusResponse.data.code;
           const qrCodeImage = qrCode.startsWith('data:image') 
             ? qrCode 
@@ -269,6 +284,11 @@ export const checkWhatsAppStatus = async (req, res) => {
         if (startError.response?.data) {
           console.log('Resposta do erro:', startError.response.data);
         }
+        return res.status(500).json({
+          status: 'error',
+          message: 'Falha ao iniciar nova sessão',
+          details: startError.message
+        });
       }
     }
 
@@ -283,7 +303,8 @@ export const checkWhatsAppStatus = async (req, res) => {
       console.log('Resposta do erro:', error.response.data);
     }
     return res.status(500).json({ 
-      error: 'Failed to check WhatsApp status',
+      status: 'error',
+      message: 'Failed to check WhatsApp status',
       details: error.message 
     });
   }
@@ -305,8 +326,13 @@ export const generateWhatsAppQR = async (req, res) => {
 
     console.log('Status response:', statusResponse.data);
 
+    // Verifica se a resposta é válida
+    if (!statusResponse.data) {
+      throw new Error('Resposta inválida do servidor WhatsApp');
+    }
+
     // Se já tiver um QR code no status
-    if (statusResponse.data?.code) {
+    if (statusResponse.data.code) {
       const qrCode = statusResponse.data.code;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
@@ -334,8 +360,13 @@ export const generateWhatsAppQR = async (req, res) => {
 
     console.log('Start session response:', startResponse.data);
 
+    // Verifica se a resposta é válida
+    if (!startResponse.data) {
+      throw new Error('Resposta inválida ao iniciar sessão');
+    }
+
     // Se a resposta já contiver o QR code
-    if (startResponse.data?.code) {
+    if (startResponse.data.code) {
       const qrCode = startResponse.data.code;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
@@ -361,7 +392,12 @@ export const generateWhatsAppQR = async (req, res) => {
 
     console.log('New status response:', newStatusResponse.data);
 
-    if (newStatusResponse.data?.code) {
+    // Verifica se a resposta é válida
+    if (!newStatusResponse.data) {
+      throw new Error('Resposta inválida ao verificar status');
+    }
+
+    if (newStatusResponse.data.code) {
       const qrCode = newStatusResponse.data.code;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
@@ -384,7 +420,8 @@ export const generateWhatsAppQR = async (req, res) => {
       console.log('Resposta do erro:', error.response.data);
     }
     return res.status(500).json({ 
-      error: 'Failed to generate QR code',
+      status: 'error',
+      message: 'Failed to generate QR code',
       details: error.message 
     });
   }
