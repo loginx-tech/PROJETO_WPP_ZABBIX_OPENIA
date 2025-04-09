@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   apps: [{
     name: "zabbix-whatsapp-ia",
     script: "./src/server.js",
