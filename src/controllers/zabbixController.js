@@ -1,11 +1,12 @@
 import axios from 'axios';
+import config from '../config.js';
 import { logs } from '../routes/zabbix.js';
 import { serverConfig } from '../server/config.js';
 
 // Log das variáveis de ambiente para debug
 console.log('Environment variables:');
-console.log('ZABBIX_URL:', serverConfig.ZABBIX_URL);
-console.log('WPP_URL:', serverConfig.WPP_URL);
+console.log('ZABBIX_URL:', config.ZABBIX_URL);
+console.log('WPP_URL:', config.WPP_URL);
 
 let openai = null;
 
@@ -20,8 +21,8 @@ async function initializeOpenAI() {
   return openai;
 }
 
-const ZABBIX_URL = serverConfig.ZABBIX_URL;
-const WPP_URL = serverConfig.WPP_URL;
+const ZABBIX_URL = config.ZABBIX_URL;
+const WPP_URL = config.WPP_URL;
 const WPP_SECRET_KEY = serverConfig.WPP_SECRET_KEY;
 
 // WhatsApp groups configuration
@@ -87,7 +88,7 @@ async function ensureAuthToken() {
 
 export async function getZabbixToken() {
   try {
-    const response = await axios.post(serverConfig.ZABBIX_URL, {
+    const response = await axios.post(config.ZABBIX_URL, {
       jsonrpc: '2.0',
       method: 'user.login',
       params: {
@@ -106,7 +107,7 @@ export async function getZabbixToken() {
 export async function getAlertas() {
   try {
     const token = await getZabbixToken();
-    const response = await axios.post(serverConfig.ZABBIX_URL, {
+    const response = await axios.post(config.ZABBIX_URL, {
       jsonrpc: '2.0',
       method: 'trigger.get',
       params: {
@@ -134,24 +135,29 @@ export async function sendWhatsAppMessage(message, phone) {
   try {
     console.log(`Enviando mensagem para ${phone}:`, message);
     
-    const response = await axios.post('http://localhost:3005/api/whatsapp/send', {
+    const response = await axios.post(`${config.WPP_URL}/api/${config.WPP_SESSION}/send-message`, {
       phone,
       message
+    }, {
+      headers: {
+        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     console.log('Resposta do envio:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Erro ao enviar mensagem WhatsApp:', error);
+    console.error('Erro ao enviar mensagem WhatsApp:', error.response?.data || error.message);
     throw new Error('Falha ao enviar mensagem WhatsApp');
   }
 }
 
 export const checkWhatsAppStatus = async (req, res) => {
   try {
-    const response = await axios.get(`${WPP_URL}/api/${wppSession}/status`, {
+    const response = await axios.get(`${config.WPP_URL}/api/${config.WPP_SESSION}/status`, {
       headers: {
-        'Authorization': `Bearer ${WPP_SECRET_KEY}`,
+        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`,
         'Content-Type': 'application/json'
       }
     });
@@ -159,19 +165,19 @@ export const checkWhatsAppStatus = async (req, res) => {
     console.log('WhatsApp status response:', response.data);
     return res.json(response.data);
   } catch (error) {
-    console.error('Error checking WhatsApp status:', error.message);
+    console.error('Error checking WhatsApp status:', error.response?.data || error.message);
     return res.status(500).json({ 
       error: 'Failed to check WhatsApp status',
-      details: error.message 
+      details: error.response?.data || error.message 
     });
   }
 };
 
 export const generateWhatsAppQR = async (req, res) => {
   try {
-    const response = await axios.get(`${WPP_URL}/api/${wppSession}/qr`, {
+    const response = await axios.get(`${config.WPP_URL}/api/${config.WPP_SESSION}/qr`, {
       headers: {
-        'Authorization': `Bearer ${WPP_SECRET_KEY}`,
+        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`,
         'Content-Type': 'application/json'
       }
     });
@@ -179,10 +185,10 @@ export const generateWhatsAppQR = async (req, res) => {
     console.log('QR code generated successfully');
     return res.json(response.data);
   } catch (error) {
-    console.error('Error generating QR code:', error.message);
+    console.error('Error generating QR code:', error.response?.data || error.message);
     return res.status(500).json({ 
       error: 'Failed to generate QR code',
-      details: error.message 
+      details: error.response?.data || error.message 
     });
   }
 };
