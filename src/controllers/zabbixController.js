@@ -2,9 +2,14 @@ import axios from 'axios';
 import OpenAI from 'openai';
 import { logs } from '../routes/zabbix.js';
 
+// Log das variáveis de ambiente para debug
+console.log('Environment variables:');
+console.log('ZABBIX_URL:', process.env.ZABBIX_URL);
+console.log('WPP_URL:', process.env.WPP_URL);
+
 // Definir a chave diretamente para garantir que funcione
 const openai = new OpenAI({
-  apiKey: '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'
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 const ZABBIX_URL = process.env.ZABBIX_URL;
@@ -21,7 +26,7 @@ const WHATSAPP_GROUPS = {
 // Zabbix API configuration
 const zabbixConfig = {
   headers: {
-    'Content-Type': 'application/json-rpc'
+    'Content-Type': 'application/json'
   }
 };
 
@@ -30,8 +35,9 @@ let zabbixToken = null;
 async function getZabbixToken() {
   if (zabbixToken) return zabbixToken;
 
+  console.log('Attempting to connect to Zabbix API at:', ZABBIX_URL);
   try {
-    const response = await axios.post(ZABBIX_URL, {
+    const requestData = {
       jsonrpc: '2.0',
       method: 'user.login',
       params: {
@@ -40,7 +46,10 @@ async function getZabbixToken() {
       },
       id: 1,
       auth: null
-    }, zabbixConfig);
+    };
+    console.log('Request data:', JSON.stringify(requestData));
+
+    const response = await axios.post(ZABBIX_URL, requestData, zabbixConfig);
 
     if (response.data.error) {
       throw new Error(`Zabbix API Error: ${response.data.error.message}`);
