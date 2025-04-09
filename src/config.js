@@ -1,25 +1,28 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Configuração centralizada da aplicação
-export const config = {
+const config = {
   // Configurações do servidor
-  PORT: process.env.PORT || 3005,
-  NODE_ENV: 'development',
+  PORT: process.env.PORT || 3000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
   APP_HOST: process.env.HOST || '0.0.0.0',
 
   // Configurações do Zabbix
-  ZABBIX_URL: process.env.ZABBIX_URL || 'http://10.0.0.11/api_jsonrpc.php',
+  ZABBIX_URL: process.env.ZABBIX_URL || 'http://localhost/zabbix/api_jsonrpc.php',
   ZABBIX_USER: process.env.ZABBIX_USER || 'Admin',
-  ZABBIX_PASS: process.env.ZABBIX_PASS || 'zabbix',
+  ZABBIX_PASSWORD: process.env.ZABBIX_PASSWORD || 'zabbix',
   
   // Configurações do WhatsApp
-  WPP_URL: process.env.WPP_URL || 'http://10.0.0.11:21465',
-  WPP_SECRET_KEY: process.env.WPP_SECRET_KEY || 'My-Secret-Key',
-  WPP_SESSION: process.env.WPP_SESSION || 'zabbix-session',
+  WPP_URL: process.env.WPP_URL || 'http://localhost:3000',
+  WPP_SECRET_KEY: process.env.WPP_SECRET_KEY || 'your-secret-key',
+  WPP_SESSION: process.env.WPP_SESSION || 'zabbix',
 
   // Grupos do WhatsApp
   WHATSAPP_GROUPS: {
-    CRITICO: ['5511999999999@g.us'],
-    ALERTA: ['5511988888888@g.us'],
-    INFO: ['5511977777777@g.us']
+    CRITICO: process.env.WHATSAPP_GROUP_CRITICO || 'CRITICO',
+    ALERTA: process.env.WHATSAPP_GROUP_ALERTA || 'ALERTA',
+    INFO: process.env.WHATSAPP_GROUP_INFO || 'INFO'
   },
 
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,

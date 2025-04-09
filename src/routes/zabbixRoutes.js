@@ -1,6 +1,6 @@
 import express from 'express';
 import { getZabbixToken, getAlertas, sendWhatsAppMessage, checkWhatsAppStatus, generateWhatsAppQR } from '../controllers/zabbixController.js';
-import { config } from '../config.js';
+import config from '../config.js';
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
@@ -74,10 +74,17 @@ router.get('/token', async (req, res) => {
 router.get('/alerta', async (req, res) => {
   try {
     const alertas = await getAlertas();
-    res.json(alertas);
+    res.json({
+      status: 'success',
+      data: alertas
+    });
   } catch (error) {
     console.error('Erro ao obter alertas:', error);
-    res.status(500).json({ error: 'Erro ao obter alertas' });
+    res.status(500).json({
+      status: 'error',
+      message: 'Falha ao obter alertas do Zabbix',
+      details: error.message
+    });
   }
 });
 
@@ -85,21 +92,35 @@ router.get('/alerta', async (req, res) => {
 router.get('/whatsapp/status', async (req, res) => {
   try {
     const status = await checkWhatsAppStatus();
-    res.json(status);
+    res.json({
+      status: 'success',
+      data: status
+    });
   } catch (error) {
-    console.error('Erro ao verificar status do WhatsApp:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Erro ao verificar status:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Falha ao verificar status do WhatsApp',
+      details: error.message
+    });
   }
 });
 
-// Rota para obter QR Code do WhatsApp
+// Rota para gerar QR Code do WhatsApp
 router.get('/whatsapp/qr', async (req, res) => {
   try {
-    const qrData = await generateWhatsAppQR();
-    res.json(qrData);
+    const qrCode = await generateWhatsAppQR();
+    res.json({
+      status: 'success',
+      data: qrCode
+    });
   } catch (error) {
     console.error('Erro ao gerar QR Code:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      status: 'error',
+      message: 'Falha ao gerar QR Code do WhatsApp',
+      details: error.message
+    });
   }
 });
 
@@ -120,13 +141,29 @@ router.post('/alerta', async (req, res) => {
 });
 
 // Rota para enviar mensagem via WhatsApp
-router.post('/whatsapp', async (req, res) => {
+router.post('/whatsapp/send', async (req, res) => {
   try {
-    const { mensagem, grupo } = req.body;
-    const result = await sendWhatsAppMessage(mensagem, grupo);
-    res.json(result);
+    const { phone, message } = req.body;
+    
+    if (!phone || !message) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Telefone e mensagem são obrigatórios'
+      });
+    }
+
+    const result = await sendWhatsAppMessage(phone, message);
+    res.json({
+      status: 'success',
+      data: result
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Erro ao enviar mensagem:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Falha ao enviar mensagem via WhatsApp',
+      details: error.message
+    });
   }
 });
 

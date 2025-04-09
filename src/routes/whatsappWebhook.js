@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { config } from '../config.js';
+import config from '../config.js';
 import { handleZabbixAlert } from '../controllers/zabbixController.js';
 
 const router = express.Router();
@@ -75,37 +75,51 @@ router.get('/qr', async (req, res) => {
   }
 });
 
-// Webhook para receber eventos do WhatsApp
-router.post('/', (req, res) => {
+// Rota para receber webhooks do WhatsApp
+router.post('/webhook', async (req, res) => {
   try {
-    const event = req.body;
-    console.log('Evento WhatsApp recebido:', event);
-
-    // Processa diferentes tipos de eventos
-    switch (event.type) {
-      case 'message':
-        console.log('Mensagem recebida:', event.message);
-        break;
-      case 'status':
-        console.log('Status atualizado:', event.status);
-        break;
-      case 'qrcode':
-        console.log('Novo QR Code gerado');
-        break;
-      default:
-        console.log('Evento não reconhecido:', event.type);
+    const { event, type, payload } = req.body;
+    
+    console.log('Webhook recebido:', { event, type });
+    
+    // Verifica se é um evento de mensagem
+    if (event === 'onmessage') {
+      const { from, body } = payload;
+      
+      // Remove o código do país (55) do número de telefone
+      const phoneNumber = from.replace('55', '');
+      
+      console.log('Mensagem recebida:', { phoneNumber, body });
+      
+      // Processa a mensagem e envia alerta do Zabbix se necessário
+      await handleZabbixAlert(phoneNumber, body);
     }
-
-    res.json({ success: true });
+    
+    // Verifica se é um evento de status
+    if (event === 'status-find') {
+      console.log('Status atualizado:', payload);
+    }
+    
+    // Verifica se é um evento de QR Code
+    if (event === 'qrcode') {
+      console.log('QR Code gerado:', payload);
+    }
+    
+    res.json({ status: 'success' });
   } catch (error) {
     console.error('Erro ao processar webhook:', error);
-    res.status(500).json({ error: 'Erro ao processar webhook' });
+    res.status(500).json({
+      status: 'error',
+      message: 'Falha ao processar webhook',
+      details: error.message
+    });
   }
 });
 
-function extractPhoneNumber(from) {
-  const phone = from.split('@')[0];
-  return phone.replace(/^55/, ''); // Remove o código do país (55) se existir
+// Helper function to format phone numbers
+function extractPhoneNumber(number) {
+  // Remove country code (55) if present
+  return number.replace(/^55/, '');
 }
 
 export default router; 

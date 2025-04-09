@@ -2,9 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { config } from './config.js';
+import config from './config.js';
 import zabbixRoutes from './routes/zabbixRoutes.js';
-import whatsappWebhook from './routes/whatsappWebhook.js';
+import whatsappWebhookRoutes from './routes/whatsappWebhook.js';
 import phoneRoutes from './routes/phoneRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,14 +17,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Log das variáveis de ambiente
-console.log('Environment variables:');
-console.log('ZABBIX_URL:', config.ZABBIX_URL);
-console.log('WPP_URL:', config.WPP_URL);
-
-// Rotas da API
+// Routes
 app.use('/api', zabbixRoutes);
-app.use('/api/webhook', whatsappWebhook);
+app.use('/api/whatsapp', whatsappWebhookRoutes);
 app.use('/api/phones', phoneRoutes);
 
 // Servir arquivos estáticos do React
@@ -35,18 +30,24 @@ app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-// Tratamento de erros
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Erro interno do servidor' });
+  console.error('Error:', err);
+  res.status(500).json({
+    status: 'error',
+    message: err.message || 'Internal server error'
+  });
 });
 
-// Iniciar o servidor
-const PORT = config.APP_PORT || 3005;
-const HOST = config.APP_HOST || '0.0.0.0';
+// Start server
+const PORT = config.server.PORT;
+const HOST = config.server.HOST || '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
-  console.log(`Servidor rodando em http://${HOST}:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log('Environment:', config.server.NODE_ENV);
+  console.log('Zabbix URL:', config.zabbix.ZABBIX_URL);
+  console.log('WhatsApp URL:', config.whatsapp.WPP_URL);
   console.log(`Arquivos estáticos sendo servidos de: ${path.join(__dirname, '../dist')}`);
 });
 
