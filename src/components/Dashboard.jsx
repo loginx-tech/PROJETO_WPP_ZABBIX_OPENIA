@@ -41,12 +41,27 @@ export default function Dashboard() {
   const fetchAlerts = useCallback(async () => {
     console.log('Fetching alerts...');
     try {
-      const response = await axios.get('/api/alerta');
+      const response = await axios.get('/api/alerta', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        validateStatus: (status) => {
+          return status >= 200 && status < 300;
+        }
+      });
+
+      // Validar se a resposta é JSON
+      if (typeof response.data === 'string') {
+        console.error('Invalid response format:', response.data);
+        throw new Error('Resposta inválida do servidor');
+      }
+
       console.log('Alerts response:', response.data);
-      setAlerts(response.data);
+      setAlerts(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error('Error fetching alerts:', err);
-      setError('Erro ao carregar alertas');
+      setError(err.message || 'Erro ao carregar alertas');
     } finally {
       console.log('Setting loading to false');
       setLoading(false);
@@ -56,7 +71,22 @@ export default function Dashboard() {
   const checkWhatsAppStatus = useCallback(async () => {
     console.log('Checking WhatsApp status...');
     try {
-      const response = await axios.get('/api/whatsapp/status');
+      const response = await axios.get('/api/whatsapp/status', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        validateStatus: (status) => {
+          return status >= 200 && status < 300;
+        }
+      });
+
+      // Validar se a resposta é JSON
+      if (typeof response.data === 'string' || !response.data.status) {
+        console.error('Invalid status response format:', response.data);
+        throw new Error('Resposta inválida do servidor');
+      }
+
       console.log('WhatsApp status response:', response.data);
       setWhatsappStatus(response.data.status);
     } catch (err) {

@@ -4,6 +4,12 @@ import { config } from '../config.js';
 
 const router = express.Router();
 
+// Middleware para garantir respostas JSON
+router.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // Array para armazenar os alertas em memória
 let alertasRecebidos = [];
 
@@ -18,9 +24,31 @@ router.get('/token', async (req, res) => {
 });
 
 // Rota para obter alertas do Zabbix
-router.get('/alertas', async (req, res) => {
+router.get('/alerta', async (req, res) => {
   try {
     res.json(alertasRecebidos);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Rota para verificar status do WhatsApp
+router.get('/whatsapp/status', async (req, res) => {
+  try {
+    // Aqui você pode implementar a verificação real do status do WhatsApp
+    // Por enquanto, vamos retornar um status mockado
+    res.json({ status: 'disconnected' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Rota para obter QR Code do WhatsApp
+router.get('/whatsapp/qr', async (req, res) => {
+  try {
+    // Aqui você pode implementar a geração real do QR Code
+    // Por enquanto, vamos retornar um erro mockado
+    res.status(503).json({ error: 'Serviço temporariamente indisponível' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
