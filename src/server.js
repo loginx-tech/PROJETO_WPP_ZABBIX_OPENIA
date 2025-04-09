@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { config } from './config.js';
 import zabbixRoutes from './routes/zabbixRoutes.js';
+import whatsappWebhook from './routes/whatsappWebhook.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 const rootDir = path.join(__dirname, '..');
 
 const app = express();
@@ -14,6 +16,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -23,6 +26,7 @@ app.use((req, res, next) => {
 
 // API Routes
 app.use('/api', zabbixRoutes);
+app.use('/api/whatsapp', whatsappWebhook);
 
 // Serve static files from the React app
 app.use(express.static(path.join(rootDir, 'dist')));
