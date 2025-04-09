@@ -25,7 +25,7 @@ const ZABBIX_USER = config.ZABBIX_USER;
 const ZABBIX_PASSWORD = config.ZABBIX_PASSWORD;
 
 // Função para gerar token de autenticação
-const generateAuthToken = async () => {
+export const getZabbixToken = async () => {
   try {
     const response = await axios.post(`${ZABBIX_URL}/api_jsonrpc.php`, {
       jsonrpc: '2.0',
@@ -50,7 +50,7 @@ const generateAuthToken = async () => {
 // Função para garantir que temos um token válido
 const ensureAuthToken = async () => {
   try {
-    const token = await generateAuthToken();
+    const token = await getZabbixToken();
     return token;
   } catch (error) {
     console.error('Erro ao garantir token de autenticação:', error);
