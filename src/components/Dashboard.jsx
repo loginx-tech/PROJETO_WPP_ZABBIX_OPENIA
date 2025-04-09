@@ -40,10 +40,13 @@ export default function Dashboard() {
 
   const fetchAlerts = async () => {
     try {
+      console.log('Fetching alerts...');
       const response = await axios.get('/api/alerta');
+      console.log('Alerts response:', response.data);
       setAlerts(response.data);
       setLoading(false);
     } catch (err) {
+      console.error('Error fetching alerts:', err);
       setError('Erro ao carregar alertas');
       setLoading(false);
     }
@@ -51,9 +54,12 @@ export default function Dashboard() {
 
   const checkWhatsAppStatus = async () => {
     try {
+      console.log('Checking WhatsApp status...');
       const response = await axios.get('/api/whatsapp/status');
+      console.log('WhatsApp status response:', response.data);
       setWhatsappStatus(response.data.status);
     } catch (err) {
+      console.error('Error checking WhatsApp status:', err);
       setWhatsappStatus('disconnected');
     }
   };

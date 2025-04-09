@@ -1,7 +1,7 @@
 // Configuração centralizada da aplicação
 export const config = {
   // Configurações do servidor
-  PORT: process.env.PORT || 3001,
+  PORT: process.env.PORT || 3005,
   NODE_ENV: process.env.NODE_ENV || 'development',
 
   // Configurações do Zabbix
