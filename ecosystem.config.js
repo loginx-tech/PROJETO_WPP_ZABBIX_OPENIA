@@ -1,7 +1,8 @@
 export default {
   apps: [{
     name: "zabbix-whatsapp-ia",
-    script: "./src/server.js",
+    script: "src/server.js",
+    cwd: "/opt/PROJETO_WPP_ZABBIX_OPENIA",
     watch: false,
     env: {
       NODE_ENV: "production",
@@ -12,6 +13,8 @@ export default {
     max_memory_restart: "1G",
     error_file: "logs/err.log",
     out_file: "logs/out.log",
-    time: true
+    time: true,
+    interpreter: "node",
+    interpreter_args: "--experimental-modules"
   }]
 }; 
