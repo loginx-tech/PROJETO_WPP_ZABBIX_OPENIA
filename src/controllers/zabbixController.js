@@ -1,28 +1,24 @@
 import axios from 'axios';
 import OpenAI from 'openai';
 import { logs } from '../routes/zabbix.js';
-import { config } from '../config.js';
+import { serverConfig } from '../server/config.js';
 
 // Log das variáveis de ambiente para debug
 console.log('Environment variables:');
-console.log('ZABBIX_URL:', process.env.ZABBIX_URL);
-console.log('WPP_URL:', process.env.WPP_URL);
+console.log('ZABBIX_URL:', serverConfig.ZABBIX_URL);
+console.log('WPP_URL:', serverConfig.WPP_URL);
 
 // Definir a chave diretamente para garantir que funcione
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: serverConfig.OPENAI_API_KEY
 });
 
-const ZABBIX_URL = process.env.ZABBIX_URL;
-const WPP_URL = process.env.WPP_URL;
-const WPP_SECRET_KEY = process.env.WPP_SECRET_KEY;
+const ZABBIX_URL = serverConfig.ZABBIX_URL;
+const WPP_URL = serverConfig.WPP_URL;
+const WPP_SECRET_KEY = serverConfig.WPP_SECRET_KEY;
 
 // WhatsApp groups configuration
-const WHATSAPP_GROUPS = {
-  CRITICO: ['5511999999999@g.us'],
-  ALERTA: ['5511988888888@g.us'],
-  INFO: ['5511977777777@g.us']
-};
+const WHATSAPP_GROUPS = serverConfig.WHATSAPP_GROUPS;
 
 // Zabbix API configuration
 const zabbixConfig = {
@@ -84,12 +80,12 @@ async function ensureAuthToken() {
 
 export const getZabbixToken = async () => {
   try {
-    const response = await axios.post(config.ZABBIX_URL, {
+    const response = await axios.post(serverConfig.ZABBIX_URL, {
       jsonrpc: '2.0',
       method: 'user.login',
       params: {
-        user: config.ZABBIX_USER,
-        password: config.ZABBIX_PASSWORD
+        user: serverConfig.ZABBIX_USER,
+        password: serverConfig.ZABBIX_PASSWORD
       },
       id: 1
     });
@@ -105,7 +101,7 @@ export const getAlertas = async () => {
       await getZabbixToken();
     }
 
-    const response = await axios.post(`${config.zabbix.url}/api_jsonrpc.php`, {
+    const response = await axios.post(`${serverConfig.zabbix.url}/api_jsonrpc.php`, {
       jsonrpc: '2.0',
       method: 'problem.get',
       params: {
@@ -163,7 +159,7 @@ export const generateWhatsAppQR = async () => {
     const startUrl = `${WPP_URL}/api/${wppSession}/start-session`;
     console.log('URL de início:', startUrl);
 
-    const webhookUrl = `http://${config.APP_HOST}:${config.APP_PORT}/api/webhook`;
+    const webhookUrl = `http://${serverConfig.APP_HOST}:${serverConfig.APP_PORT}/api/webhook`;
     console.log('Webhook URL:', webhookUrl);
 
     const startResponse = await axios.post(startUrl, {

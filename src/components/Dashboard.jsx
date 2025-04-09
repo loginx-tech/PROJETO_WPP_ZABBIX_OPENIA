@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { config } from '../config.js';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
