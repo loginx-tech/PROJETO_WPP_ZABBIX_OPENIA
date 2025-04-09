@@ -29,13 +29,13 @@ app.use(express.static(path.join(rootDir, 'dist')));
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
   res.sendFile(path.join(rootDir, 'dist/index.html'));
 });
 
-const PORT = config.PORT || 3001;
+const PORT = config.PORT || 3005;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Static files being served from: ${path.join(rootDir, 'dist')}`);
 });
