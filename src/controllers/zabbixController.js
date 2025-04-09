@@ -44,16 +44,10 @@ async function generateAuthToken() {
     wppSession = `zabbix_${Date.now()}`;
     console.log('Session ID:', wppSession);
     
-    const url = `${config.WPP_URL}/api/${wppSession}/generate-token`;
+    const url = `${WPP_URL}/${wppSession}/${WPP_SECRET_KEY}/generate-token`;
     console.log('URL completa:', url);
 
-    const response = await axios.post(url, {
-      secretKey: config.WPP_SECRET_KEY
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await axios.post(url);
     
     console.log('Resposta da API:', response.data);
     
@@ -142,8 +136,7 @@ export const checkWhatsAppStatus = async () => {
 
     const response = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${wppToken}`
       }
     });
     
@@ -167,7 +160,7 @@ export const generateWhatsAppQR = async () => {
     console.log('Iniciando geração de QR Code...');
     
     // Primeiro inicia a sessão
-    const startUrl = `${config.WPP_URL}/api/${wppSession}/start-session`;
+    const startUrl = `${WPP_URL}/${wppSession}/start-session`;
     console.log('URL de início:', startUrl);
 
     const startResponse = await axios.post(startUrl, {
@@ -175,8 +168,7 @@ export const generateWhatsAppQR = async () => {
       waitQrCode: true
     }, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${wppToken}`
       }
     });
 
@@ -189,13 +181,12 @@ export const generateWhatsAppQR = async () => {
 
     // Se não estiver conectado, solicita o QR Code
     console.log('Solicitando QR Code...');
-    const qrUrl = `${config.WPP_URL}/api/${wppSession}/qrcode-session`;
+    const qrUrl = `${WPP_URL}/${wppSession}/qrcode-session`;
     console.log('URL do QR Code:', qrUrl);
 
     const qrResponse = await axios.get(qrUrl, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${wppToken}`
       }
     });
 
@@ -224,7 +215,7 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
 
     const promises = grupos.map(async (phoneNumber) => {
       const response = await axios.post(
-        `${config.WPP_URL}/api/${wppSession}/send-message`,
+        `${WPP_URL}/${wppSession}/send-message`,
         {
           phone: phoneNumber,
           message: mensagem,
@@ -232,8 +223,7 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
         },
         {
           headers: {
-            'Authorization': `Bearer ${wppToken}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${wppToken}`
           }
         }
       );
