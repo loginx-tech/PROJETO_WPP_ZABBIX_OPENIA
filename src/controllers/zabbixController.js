@@ -185,8 +185,19 @@ export const checkWhatsAppStatus = async (req, res) => {
       throw new Error('Resposta inválida do servidor WhatsApp');
     }
 
-    // Se a resposta contiver um código QR diretamente
-    if (response.data.qrcode) {
+    const status = (response.data.status || 'DISCONNECTED').toUpperCase();
+    console.log('Status atual:', status);
+
+    // Se estiver conectado
+    if (status === 'CONNECTED') {
+      return res.json({
+        status: 'success',
+        message: 'Conectado'
+      });
+    }
+
+    // Se tiver QR code
+    if (status === 'QRCODE' && response.data.qrcode) {
       const qrCode = response.data.qrcode;
       const qrCodeImage = qrCode.startsWith('data:image') 
         ? qrCode 
@@ -195,17 +206,6 @@ export const checkWhatsAppStatus = async (req, res) => {
       return res.json({
         status: 'success',
         qrcode: qrCodeImage
-      });
-    }
-
-    // Se a resposta contiver o status
-    const status = (response.data.status || 'DISCONNECTED').toUpperCase();
-
-    // Se estiver conectado
-    if (status === 'CONNECTED') {
-      return res.json({
-        status: 'success',
-        message: 'Conectado'
       });
     }
 
