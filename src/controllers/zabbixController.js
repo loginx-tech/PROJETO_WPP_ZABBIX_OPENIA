@@ -1,5 +1,4 @@
 import axios from 'axios';
-import OpenAI from 'openai';
 import { logs } from '../routes/zabbix.js';
 import { serverConfig } from '../server/config.js';
 
@@ -8,10 +7,18 @@ console.log('Environment variables:');
 console.log('ZABBIX_URL:', serverConfig.ZABBIX_URL);
 console.log('WPP_URL:', serverConfig.WPP_URL);
 
-// Definir a chave diretamente para garantir que funcione
-const openai = new OpenAI({
-  apiKey: serverConfig.OPENAI_API_KEY
-});
+let openai = null;
+
+// Inicializa OpenAI apenas se a chave estiver disponível
+async function initializeOpenAI() {
+  if (!openai && serverConfig.OPENAI_API_KEY) {
+    const { default: OpenAI } = await import('openai');
+    openai = new OpenAI({
+      apiKey: serverConfig.OPENAI_API_KEY
+    });
+  }
+  return openai;
+}
 
 const ZABBIX_URL = serverConfig.ZABBIX_URL;
 const WPP_URL = serverConfig.WPP_URL;
@@ -237,13 +244,17 @@ export async function handleZabbixAlert(req, res) {
       limit: 5
     });
 
-    const prompt = generatePrompt(host, mensagem, history);
-    const completion = await openai.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      model: "gpt-4",
-    });
-
-    const aiResponse = completion.choices[0].message.content;
+    let aiResponse = '';
+    // Tenta usar OpenAI apenas se estiver disponível
+    const ai = await initializeOpenAI();
+    if (ai) {
+      const prompt = generatePrompt(host, mensagem, history);
+      const completion = await ai.chat.completions.create({
+        messages: [{ role: "user", content: prompt }],
+        model: "gpt-4",
+      });
+      aiResponse = completion.choices[0].message.content;
+    }
 
     const severity = determineAlertSeverity(mensagem);
     const targetGroups = WHATSAPP_GROUPS[severity];
@@ -251,7 +262,7 @@ export async function handleZabbixAlert(req, res) {
     const whatsappMessage = `🚨 *Alerta Zabbix - ${severity}*\n\n` +
       `*Host:* ${host}\n` +
       `*Mensagem:* ${mensagem}\n\n` +
-      `*Análise da IA:*\n${aiResponse}`;
+      (aiResponse ? `*Análise da IA:*\n${aiResponse}` : '');
 
     const sendResults = await Promise.all(
       targetGroups.map(groupId => sendWhatsAppMessage(whatsappMessage, groupId))
@@ -261,13 +272,15 @@ export async function handleZabbixAlert(req, res) {
       host,
       triggerId,
       history,
-      prompt,
-      aiResponse,
       severity,
       timestamp: new Date().toISOString(),
       recipients: targetGroups,
       sendStatus: sendResults
     };
+
+    if (aiResponse) {
+      log.aiResponse = aiResponse;
+    }
 
     logs.push(log);
 
