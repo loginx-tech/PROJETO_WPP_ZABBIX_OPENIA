@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -10,7 +10,9 @@ function App() {
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    setIsAuthenticated(token === 'authenticated');
+    if (token === 'authenticated' && !isAuthenticated) {
+      setIsAuthenticated(true);
+    }
     setIsLoading(false);
   }, []);
 
@@ -42,29 +44,6 @@ function App() {
     );
   }
 
-  const ProtectedDashboard = () => {
-    return (
-      <div className="relative min-h-screen bg-gray-100">
-        <nav className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16 items-center">
-              <h1 className="text-xl font-semibold text-gray-800">Zabbix IA WhatsApp</h1>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
-              >
-                Sair
-              </button>
-            </div>
-          </div>
-        </nav>
-        <main className="container mx-auto px-4 py-8">
-          <Dashboard />
-        </main>
-      </div>
-    );
-  };
-
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
@@ -83,7 +62,24 @@ function App() {
             path="/" 
             element={
               isAuthenticated ? (
-                <ProtectedDashboard />
+                <div className="relative min-h-screen bg-gray-100">
+                  <nav className="bg-white shadow-sm">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                      <div className="flex justify-between h-16 items-center">
+                        <h1 className="text-xl font-semibold text-gray-800">Zabbix IA WhatsApp</h1>
+                        <button
+                          onClick={handleLogout}
+                          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+                        >
+                          Sair
+                        </button>
+                      </div>
+                    </div>
+                  </nav>
+                  <main className="container mx-auto px-4 py-8">
+                    <Dashboard />
+                  </main>
+                </div>
               ) : (
                 <Navigate to="/login" replace />
               )
