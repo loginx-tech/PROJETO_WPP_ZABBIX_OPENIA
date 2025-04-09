@@ -4,7 +4,7 @@ dotenv.config();
 // Configuração centralizada da aplicação
 const config = {
   // Configurações do servidor
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.PORT || 3005,
   NODE_ENV: process.env.NODE_ENV || 'development',
   APP_HOST: process.env.HOST || '0.0.0.0',
 
