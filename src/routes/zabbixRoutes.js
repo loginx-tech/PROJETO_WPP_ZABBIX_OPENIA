@@ -1,8 +1,12 @@
 import express from 'express';
 import { getZabbixToken, getAlertas, sendWhatsAppMessage, checkWhatsAppStatus, generateWhatsAppQR } from '../controllers/zabbixController.js';
 import { config } from '../config.js';
+import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
 
 const router = express.Router();
+const PHONES_FILE = path.join(process.cwd(), 'data', 'phones.json');
 
 // Middleware para garantir respostas JSON
 router.use((req, res, next) => {
@@ -12,6 +16,63 @@ router.use((req, res, next) => {
 
 // Array para armazenar os alertas em memória
 let alertasRecebidos = [];
+
+async function loadPhones() {
+  try {
+    const data = await fs.readFile(PHONES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return { CRITICO: [], ALERTA: [], INFO: [] };
+    }
+    throw error;
+  }
+}
+
+async function sendWhatsAppMessage(phone, message) {
+  try {
+    console.log(`Enviando mensagem para ${phone}: ${message}`);
+    const response = await axios.post('http://localhost:3005/api/whatsapp/send', {
+      phone: phone.replace('+', ''),
+      message
+    });
+    console.log('Mensagem enviada com sucesso:', response.data);
+    return true;
+  } catch (error) {
+    console.error('Erro ao enviar mensagem:', error.message);
+    return false;
+  }
+}
+
+async function notifyAlert(alert) {
+  try {
+    const phones = await loadPhones();
+    let severity = 'INFO';
+    
+    // Determina a severidade com base na prioridade do Zabbix
+    if (alert.priority >= 4) {
+      severity = 'CRITICO';
+    } else if (alert.priority >= 2) {
+      severity = 'ALERTA';
+    }
+
+    const message = `*${severity}*\n\n` +
+      `*Host:* ${alert.host}\n` +
+      `*Problema:* ${alert.problem}\n` +
+      `*Severidade:* ${alert.severity}\n` +
+      `*Data:* ${new Date(alert.time).toLocaleString('pt-BR')}\n\n` +
+      `*Status:* ${alert.status}`;
+
+    const targetPhones = phones[severity];
+    console.log(`Enviando alerta ${severity} para ${targetPhones.length} números`);
+
+    for (const phone of targetPhones) {
+      await sendWhatsAppMessage(phone, message);
+    }
+  } catch (error) {
+    console.error('Erro ao notificar alerta:', error);
+  }
+}
 
 // Rota para obter token do Zabbix
 router.get('/token', async (req, res) => {
@@ -54,52 +115,19 @@ router.get('/whatsapp/qr', async (req, res) => {
   }
 });
 
-// Rota para receber novos alertas
+// Rota para receber alertas do Zabbix
 router.post('/alerta', async (req, res) => {
   try {
-    const { host, triggerId, severity, mensagem } = req.body;
+    const alert = req.body;
+    console.log('Alerta recebido:', alert);
     
-    // Validar dados obrigatórios
-    if (!host || !triggerId || !mensagem) {
-      return res.status(400).json({ error: 'Dados incompletos. Host, triggerId e mensagem são obrigatórios.' });
-    }
-
-    // Criar novo alerta
-    const novoAlerta = {
-      host,
-      triggerId,
-      severity: severity || 'UNKNOWN',
-      mensagem,
-      timestamp: new Date(),
-      whatsappStatus: 'pending'
-    };
-
-    // Tentar enviar mensagem via WhatsApp se houver configuração
-    try {
-      if (config.WPP_URL && config.WPP_SECRET_KEY) {
-        const grupo = severity === 'CRITICO' ? 'CRITICO' : 
-                     severity === 'ALERTA' ? 'ALERTA' : 'INFO';
-        
-        await sendWhatsAppMessage(mensagem, grupo);
-        novoAlerta.whatsappStatus = 'success';
-      }
-    } catch (error) {
-      console.error('Erro ao enviar mensagem WhatsApp:', error);
-      novoAlerta.whatsappStatus = 'error';
-    }
-
-    // Adicionar alerta à lista
-    alertasRecebidos.unshift(novoAlerta);
-
-    // Manter apenas os últimos 100 alertas
-    if (alertasRecebidos.length > 100) {
-      alertasRecebidos = alertasRecebidos.slice(0, 100);
-    }
-
-    res.status(201).json(novoAlerta);
+    // Notifica os contatos cadastrados
+    await notifyAlert(alert);
+    
+    res.json({ success: true, message: 'Alerta processado com sucesso' });
   } catch (error) {
     console.error('Erro ao processar alerta:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erro ao processar alerta' });
   }
 });
 
