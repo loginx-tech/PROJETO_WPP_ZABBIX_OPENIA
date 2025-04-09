@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -9,15 +9,12 @@ function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('authToken');
-      setIsAuthenticated(token === 'authenticated');
-      setIsLoading(false);
-    };
-    checkAuth();
+    const token = localStorage.getItem('authToken');
+    setIsAuthenticated(token === 'authenticated');
+    setIsLoading(false);
   }, []);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const username = formData.get('username');
@@ -27,7 +24,6 @@ function App() {
       localStorage.setItem('authToken', 'authenticated');
       setIsAuthenticated(true);
       setError('');
-      window.location.href = '/';
     } else {
       setError('Credenciais inválidas');
     }
@@ -36,7 +32,6 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     setIsAuthenticated(false);
-    window.location.href = '/login';
   };
 
   if (isLoading) {
@@ -47,7 +42,6 @@ function App() {
     );
   }
 
-  // Componente protegido que inclui o botão de logout
   const ProtectedDashboard = () => {
     return (
       <div className="relative min-h-screen bg-gray-100">
@@ -73,28 +67,30 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        <Route 
-          path="/login" 
-          element={
-            !isAuthenticated ? (
-              <Login onLogin={handleLogin} error={error} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          } 
-        />
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? (
-              <ProtectedDashboard />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
-        />
-      </Routes>
+      <div className="min-h-screen bg-gray-50">
+        <Routes>
+          <Route 
+            path="/login" 
+            element={
+              !isAuthenticated ? (
+                <Login onLogin={handleLogin} error={error} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
+          <Route 
+            path="/" 
+            element={
+              isAuthenticated ? (
+                <ProtectedDashboard />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
+        </Routes>
+      </div>
     </Router>
   );
 }

@@ -33,8 +33,11 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '/api')
       },
     },
+    host: true,
+    port: 3005
   },
   resolve: {
     extensions: ['.js', '.jsx', '.json']
-  }
+  },
+  base: '/'
 }) 
