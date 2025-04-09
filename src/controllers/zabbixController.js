@@ -33,6 +33,34 @@ const zabbixConfig = {
 
 let zabbixToken = null;
 
+// Variável para armazenar o token de autorização
+let wppAuthToken = null;
+
+// Função para gerar o token de autorização
+async function generateAuthToken() {
+  try {
+    const response = await axios.post(
+      `${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/generate-token`,
+      {
+        session: config.WPP_SECRET_KEY,
+        secretKey: config.WPP_SECRET_KEY
+      }
+    );
+    wppAuthToken = response.data.token;
+    return wppAuthToken;
+  } catch (error) {
+    throw new Error(`Erro ao gerar token de autorização: ${error.message}`);
+  }
+}
+
+// Função para garantir que temos um token válido
+async function ensureAuthToken() {
+  if (!wppAuthToken) {
+    await generateAuthToken();
+  }
+  return wppAuthToken;
+}
+
 export const getZabbixToken = async () => {
   try {
     const response = await axios.post(config.ZABBIX_URL, {
@@ -79,45 +107,64 @@ export const getAlertas = async () => {
 
 export const checkWhatsAppStatus = async () => {
   try {
-    const response = await axios.get(`${config.WPP_URL}/api/session/status`, {
+    const token = await ensureAuthToken();
+    const response = await axios.get(`${config.WPP_URL}/api/status`, {
       headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+        'Authorization': `Bearer ${token}`
       }
     });
     return response.data;
   } catch (error) {
+    if (error.response?.status === 401) {
+      wppAuthToken = null; // Reset token if unauthorized
+      return checkWhatsAppStatus(); // Retry once
+    }
     throw new Error(`Erro ao verificar status do WhatsApp: ${error.message}`);
   }
 };
 
 export const generateWhatsAppQR = async () => {
   try {
+    const token = await ensureAuthToken();
+    
     // Primeiro, inicia a sessão
-    const startResponse = await axios.post(`${config.WPP_URL}/api/session/start`, {}, {
-      headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+    const startResponse = await axios.post(
+      `${config.WPP_URL}/api/start`,
+      { session: config.WPP_SECRET_KEY },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       }
-    });
+    );
 
     if (startResponse.data.status === 'CONNECTED') {
       return { status: 'CONNECTED' };
     }
 
     // Se não estiver conectado, solicita o QR Code
-    const qrResponse = await axios.get(`${config.WPP_URL}/api/session/qr-code`, {
-      headers: {
-        'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+    const qrResponse = await axios.get(
+      `${config.WPP_URL}/api/qr-code`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       }
-    });
+    );
 
     return qrResponse.data;
   } catch (error) {
+    if (error.response?.status === 401) {
+      wppAuthToken = null; // Reset token if unauthorized
+      return generateWhatsAppQR(); // Retry once
+    }
     throw new Error(`Erro ao gerar QR Code: ${error.message}`);
   }
 };
 
 export const sendWhatsAppMessage = async (mensagem, grupo) => {
   try {
+    const token = await ensureAuthToken();
     const grupos = config.WHATSAPP_GROUPS[grupo] || [];
     
     if (grupos.length === 0) {
@@ -125,24 +172,32 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
     }
 
     const promises = grupos.map(async (phoneNumber) => {
-      const response = await axios.post(`${config.WPP_URL}/api/message/text`, {
-        number: phoneNumber,
-        options: {
-          delay: 1200,
-          presence: "composing"
+      const response = await axios.post(
+        `${config.WPP_URL}/api/send-message`,
+        {
+          number: phoneNumber,
+          options: {
+            delay: 1200,
+            presence: "composing"
+          },
+          textMessage: mensagem
         },
-        textMessage: mensagem
-      }, {
-        headers: {
-          'Authorization': `Bearer ${config.WPP_SECRET_KEY}`
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
       return response.data;
     });
 
     const results = await Promise.all(promises);
     return { success: true, results };
   } catch (error) {
+    if (error.response?.status === 401) {
+      wppAuthToken = null; // Reset token if unauthorized
+      return sendWhatsAppMessage(mensagem, grupo); // Retry once
+    }
     throw new Error(`Erro ao enviar mensagem WhatsApp: ${error.message}`);
   }
 };
