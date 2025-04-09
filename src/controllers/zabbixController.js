@@ -44,17 +44,10 @@ async function generateAuthToken() {
     wppSession = `zabbix_${Date.now()}`;
     console.log('Session ID:', wppSession);
     
-    const url = `${WPP_URL}/api/generate-token`;
+    const url = `${WPP_URL}/api/${wppSession}/${WPP_SECRET_KEY}/generate-token`;
     console.log('URL completa:', url);
 
-    const response = await axios.post(url, {
-      sessionName: wppSession,
-      secretKey: WPP_SECRET_KEY
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await axios.post(url);
     
     console.log('Resposta da API:', response.data);
     
@@ -138,16 +131,12 @@ export const checkWhatsAppStatus = async () => {
     await ensureAuthToken();
 
     console.log('Verificando status do WhatsApp...');
-    const url = `${WPP_URL}/api/status-session`;
+    const url = `${WPP_URL}/api/${wppSession}/status-session`;
     console.log('URL do status:', url);
 
     const response = await axios.get(url, {
-      params: {
-        sessionName: wppSession
-      },
       headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${wppToken}`
       }
     });
     
@@ -171,17 +160,15 @@ export const generateWhatsAppQR = async () => {
     console.log('Iniciando geração de QR Code...');
     
     // Primeiro inicia a sessão
-    const startUrl = `${WPP_URL}/api/start-session`;
+    const startUrl = `${WPP_URL}/api/${wppSession}/start-session`;
     console.log('URL de início:', startUrl);
 
     const startResponse = await axios.post(startUrl, {
-      sessionName: wppSession,
       webhook: `${config.APP_URL}/api/webhook`,
       waitQrCode: true
     }, {
       headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${wppToken}`
       }
     });
 
@@ -194,16 +181,12 @@ export const generateWhatsAppQR = async () => {
 
     // Se não estiver conectado, solicita o QR Code
     console.log('Solicitando QR Code...');
-    const qrUrl = `${WPP_URL}/api/qrcode-session`;
+    const qrUrl = `${WPP_URL}/api/${wppSession}/qrcode-session`;
     console.log('URL do QR Code:', qrUrl);
 
     const qrResponse = await axios.get(qrUrl, {
-      params: {
-        sessionName: wppSession
-      },
       headers: {
-        'Authorization': `Bearer ${wppToken}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${wppToken}`
       }
     });
 
@@ -232,17 +215,15 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
 
     const promises = grupos.map(async (phoneNumber) => {
       const response = await axios.post(
-        `${WPP_URL}/api/send-message`,
+        `${WPP_URL}/api/${wppSession}/send-message`,
         {
-          sessionName: wppSession,
           phone: phoneNumber,
           message: mensagem,
           isGroup: phoneNumber.includes('@g.us')
         },
         {
           headers: {
-            'Authorization': `Bearer ${wppToken}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${wppToken}`
           }
         }
       );
