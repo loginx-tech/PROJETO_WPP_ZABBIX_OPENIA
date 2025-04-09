@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { config } from '../config.js';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -31,6 +32,31 @@ const severityColors = {
 export default function Dashboard() {
   const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [whatsappStatus, setWhatsappStatus] = useState('disconnected');
+  const [qrCode, setQrCode] = useState(null);
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  const checkWhatsAppStatus = async () => {
+    try {
+      const response = await axios.get(`${config.WPP_URL}/api/status`);
+      setWhatsappStatus(response.data.status);
+    } catch (error) {
+      console.error('Erro ao verificar status do WhatsApp:', error);
+      setWhatsappStatus('error');
+    }
+  };
+
+  const getQrCode = async () => {
+    try {
+      const response = await axios.get(`${config.WPP_URL}/api/start-session`);
+      if (response.data.qrcode) {
+        setQrCode(response.data.qrcode);
+        setShowQrModal(true);
+      }
+    } catch (error) {
+      console.error('Erro ao obter QR Code:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchAlertas = async () => {
@@ -45,13 +71,49 @@ export default function Dashboard() {
     };
 
     fetchAlertas();
-    const interval = setInterval(fetchAlertas, 30000);
+    checkWhatsAppStatus();
 
-    return () => clearInterval(interval);
+    // Atualiza a cada 3 segundos
+    const alertasInterval = setInterval(fetchAlertas, 3000);
+    const statusInterval = setInterval(checkWhatsAppStatus, 3000);
+
+    return () => {
+      clearInterval(alertasInterval);
+      clearInterval(statusInterval);
+    };
   }, []);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
+  };
+
+  // Modal do QR Code
+  const QrCodeModal = () => {
+    if (!showQrModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl">
+          <h3 className="text-xl font-bold mb-4">Conectar WhatsApp</h3>
+          {qrCode ? (
+            <div className="mb-4">
+              <img src={qrCode} alt="QR Code" className="mx-auto" />
+              <p className="text-sm text-gray-600 text-center mt-2">
+                Escaneie o código QR com seu WhatsApp
+              </p>
+            </div>
+          ) : (
+            <p>Carregando QR Code...</p>
+          )}
+          <button
+            onClick={() => setShowQrModal(false)}
+            className="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -65,7 +127,31 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Zabbix Alerts Dashboard</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Zabbix Alerts Dashboard</h1>
+          
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">WhatsApp Status:</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                whatsappStatus === 'connected' ? 'bg-green-100 text-green-800' :
+                whatsappStatus === 'disconnected' ? 'bg-red-100 text-red-800' :
+                'bg-yellow-100 text-yellow-800'
+              }`}>
+                {whatsappStatus === 'connected' ? 'Conectado' :
+                 whatsappStatus === 'disconnected' ? 'Desconectado' :
+                 'Conectando...'}
+              </span>
+            </div>
+            
+            <button
+              onClick={getQrCode}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Conectar WhatsApp
+            </button>
+          </div>
+        </div>
         
         <div className="space-y-6">
           {alertas.length === 0 ? (
@@ -141,6 +227,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      <QrCodeModal />
     </div>
   );
 } 
