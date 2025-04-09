@@ -1,6 +1,7 @@
 import axios from 'axios';
 import OpenAI from 'openai';
 import { logs } from '../routes/zabbix.js';
+import { config } from '../config.js';
 
 // Log das variáveis de ambiente para debug
 console.log('Environment variables:');
@@ -32,36 +33,71 @@ const zabbixConfig = {
 
 let zabbixToken = null;
 
-async function getZabbixToken() {
-  if (zabbixToken) return zabbixToken;
-
-  console.log('Attempting to connect to Zabbix API at:', ZABBIX_URL);
+export const getZabbixToken = async () => {
   try {
-    const requestData = {
+    const response = await axios.post(`${config.zabbix.url}/api_jsonrpc.php`, {
       jsonrpc: '2.0',
       method: 'user.login',
       params: {
-        user: process.env.ZABBIX_USER,
-        password: process.env.ZABBIX_PASSWORD
+        user: config.zabbix.user,
+        password: config.zabbix.password
       },
-      id: 1,
-      auth: null
-    };
-    console.log('Request data:', JSON.stringify(requestData));
-
-    const response = await axios.post(ZABBIX_URL, requestData, zabbixConfig);
-
-    if (response.data.error) {
-      throw new Error(`Zabbix API Error: ${response.data.error.message}`);
-    }
+      id: 1
+    });
 
     zabbixToken = response.data.result;
     return zabbixToken;
   } catch (error) {
-    console.error('Error authenticating with Zabbix:', error);
+    console.error('Erro ao obter token do Zabbix:', error);
     throw error;
   }
-}
+};
+
+export const getAlertas = async () => {
+  try {
+    if (!zabbixToken) {
+      await getZabbixToken();
+    }
+
+    const response = await axios.post(`${config.zabbix.url}/api_jsonrpc.php`, {
+      jsonrpc: '2.0',
+      method: 'problem.get',
+      params: {
+        output: 'extend',
+        selectHosts: ['host'],
+        sortfield: ['eventid'],
+        sortorder: 'DESC',
+        limit: 10
+      },
+      auth: zabbixToken,
+      id: 2
+    });
+
+    return response.data.result;
+  } catch (error) {
+    console.error('Erro ao obter alertas do Zabbix:', error);
+    throw error;
+  }
+};
+
+export const sendWhatsAppMessage = async (mensagem, grupo) => {
+  try {
+    const response = await axios.post(`${config.whatsapp.url}/api/send-message`, {
+      message: mensagem,
+      group: grupo
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.whatsapp.secretKey}`
+      }
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao enviar mensagem WhatsApp:', error);
+    throw error;
+  }
+};
 
 async function zabbixRequest(method, params) {
   const token = await getZabbixToken();
@@ -116,24 +152,6 @@ Por favor, forneça:
 Formate a resposta de forma clara e objetiva.`;
 }
 
-async function sendWhatsAppMessage(groupId, message) {
-  try {
-    await axios.post(`${WPP_URL}/api/v1/message/send-text`, {
-      session: 'default',
-      number: groupId,
-      text: message
-    }, {
-      headers: {
-        'Authorization': `Bearer ${WPP_SECRET_KEY}`
-      }
-    });
-    return true;
-  } catch (error) {
-    console.error('Error sending WhatsApp message:', error);
-    return false;
-  }
-}
-
 export async function handleZabbixAlert(req, res) {
   try {
     const { host, triggerId, mensagem } = req.body;
@@ -175,7 +193,7 @@ export async function handleZabbixAlert(req, res) {
       `*Análise da IA:*\n${aiResponse}`;
 
     const sendResults = await Promise.all(
-      targetGroups.map(groupId => sendWhatsAppMessage(groupId, whatsappMessage))
+      targetGroups.map(groupId => sendWhatsAppMessage(whatsappMessage, groupId))
     );
 
     const log = {
