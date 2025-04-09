@@ -1,93 +1,56 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import Login from './components/Login';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
+import Login from './components/Login';
+import './App.css';
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token === 'authenticated' && !isAuthenticated) {
+    const token = localStorage.getItem('token');
+    if (token === 'authenticated') {
       setIsAuthenticated(true);
     }
-    setIsLoading(false);
+    setLoading(false);
   }, []);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const username = formData.get('username');
-    const password = formData.get('password');
-    
-    if (username === 'admin' && password === 'JasonBourne@2025') {
-      localStorage.setItem('authToken', 'authenticated');
-      setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError('Credenciais inválidas');
-    }
+  const handleLogin = () => {
+    localStorage.setItem('token', 'authenticated');
+    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  if (loading) {
+    return <div className="loading">Carregando...</div>;
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          <Route 
-            path="/login" 
-            element={
-              !isAuthenticated ? (
-                <Login onLogin={handleLogin} error={error} />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/" 
-            element={
-              isAuthenticated ? (
-                <div className="relative min-h-screen bg-gray-100">
-                  <nav className="bg-white shadow-sm">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                      <div className="flex justify-between h-16 items-center">
-                        <h1 className="text-xl font-semibold text-gray-800">Zabbix IA WhatsApp</h1>
-                        <button
-                          onClick={handleLogout}
-                          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
-                        >
-                          Sair
-                        </button>
-                      </div>
-                    </div>
-                  </nav>
-                  <main className="container mx-auto px-4 py-8">
-                    <Dashboard />
-                  </main>
-                </div>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-        </Routes>
-      </div>
-    </Router>
+    <div className="app-container">
+      <Routes>
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated ? 
+              <Navigate to="/" replace /> : 
+              <Login onLogin={handleLogin} />
+          } 
+        />
+        <Route 
+          path="/" 
+          element={
+            isAuthenticated ? 
+              <Dashboard onLogout={handleLogout} /> : 
+              <Navigate to="/login" replace />
+          } 
+        />
+      </Routes>
+    </div>
   );
 }
 
