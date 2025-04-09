@@ -41,14 +41,9 @@ async function generateAuthToken() {
   try {
     console.log('Tentando gerar token de autorização...');
     
-    // URL correta conforme documentação
-    const url = `${config.WPP_URL}/api/${config.WPP_SECRET_KEY}/generate-token`;
+    // URL correta com o nome da sessão
+    const url = `${config.WPP_URL}/api/mysession/${config.WPP_SECRET_KEY}/generate-token`;
     console.log('URL completa:', url);
-    
-    const data = {
-      session: config.WPP_SECRET_KEY
-    };
-    console.log('Dados enviados:', JSON.stringify(data, null, 2));
 
     const response = await axios.post(url);
     console.log('Resposta da API:', JSON.stringify(response.data, null, 2));
@@ -135,7 +130,7 @@ export const checkWhatsAppStatus = async () => {
     }
 
     console.log('Verificando status do WhatsApp...');
-    const url = `${config.WPP_URL}/api/status`;
+    const url = `${config.WPP_URL}/api/mysession/status`;
     console.log('URL do status:', url);
 
     const response = await axios.get(url, {
@@ -168,12 +163,12 @@ export const generateWhatsAppQR = async () => {
     console.log('Iniciando geração de QR Code...');
     
     // Primeiro inicia a sessão
-    const startUrl = `${config.WPP_URL}/api/session/start`;
+    const startUrl = `${config.WPP_URL}/api/mysession/start-session`;
     console.log('URL de início:', startUrl);
 
     const startResponse = await axios.post(
       startUrl,
-      { session: config.WPP_SECRET_KEY },
+      {},
       {
         headers: {
           'Authorization': `Bearer ${wppAuthToken}`
@@ -189,7 +184,7 @@ export const generateWhatsAppQR = async () => {
 
     // Se não estiver conectado, solicita o QR Code
     console.log('Solicitando QR Code...');
-    const qrUrl = `${config.WPP_URL}/api/session/qr-code`;
+    const qrUrl = `${config.WPP_URL}/api/mysession/qr-code`;
     console.log('URL do QR Code:', qrUrl);
 
     const qrResponse = await axios.get(
@@ -230,7 +225,7 @@ export const sendWhatsAppMessage = async (mensagem, grupo) => {
 
     const promises = grupos.map(async (phoneNumber) => {
       const response = await axios.post(
-        `${config.WPP_URL}/api/message/text`,
+        `${config.WPP_URL}/api/mysession/send-message`,
         {
           number: phoneNumber,
           options: {
