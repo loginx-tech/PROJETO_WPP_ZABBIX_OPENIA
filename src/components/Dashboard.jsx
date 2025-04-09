@@ -29,23 +29,23 @@ const severityColors = {
 };
 
 export default function Dashboard() {
-  const [logs, setLogs] = useState([]);
+  const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLogs = async () => {
+    const fetchAlertas = async () => {
       try {
-        const response = await axios.get('/api/logs');
-        setLogs(response.data);
+        const response = await axios.get('/api/alertas');
+        setAlertas(response.data);
       } catch (error) {
-        console.error('Error fetching logs:', error);
+        console.error('Error fetching alertas:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 30000);
+    fetchAlertas();
+    const interval = setInterval(fetchAlertas, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -68,85 +68,77 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Zabbix Alerts Dashboard</h1>
         
         <div className="space-y-6">
-          {logs.map((log, index) => (
-            <div
-              key={index}
-              className="bg-white shadow rounded-lg p-6 space-y-4"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {log.host}
-                    </h2>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${severityColors[log.severity]}`}>
-                      {log.severity}
-                    </span>
+          {alertas.length === 0 ? (
+            <div className="bg-white shadow rounded-lg p-6">
+              <p className="text-gray-500 text-center">Nenhum alerta encontrado.</p>
+            </div>
+          ) : (
+            alertas.map((alerta, index) => (
+              <div
+                key={index}
+                className="bg-white shadow rounded-lg p-6 space-y-4"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-xl font-semibold text-gray-900">
+                        {alerta.host}
+                      </h2>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${severityColors[alerta.severity] || 'bg-gray-100 text-gray-800'}`}>
+                        {alerta.severity || 'UNKNOWN'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Trigger ID: {alerta.triggerId}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    Trigger ID: {log.triggerId}
-                  </p>
+                  <span className="text-sm text-gray-500">
+                    {formatDate(alerta.timestamp || new Date())}
+                  </span>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {formatDate(log.timestamp)}
-                </span>
-              </div>
 
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Historical Data
-                </h3>
-                <div className="h-64">
-                  <Line
-                    data={{
-                      labels: log.history.map((_, i) => `Value ${i + 1}`),
-                      datasets: [
-                        {
-                          label: 'Values',
-                          data: log.history.map(h => parseFloat(h.value)),
-                          borderColor: 'rgb(75, 192, 192)',
-                          tension: 0.1
-                        }
-                      ]
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false
-                    }}
-                  />
+                <div className="border-t border-gray-200 pt-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Mensagem
+                  </h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-gray-700 whitespace-pre-wrap">
+                      {alerta.mensagem}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  AI Analysis
-                </h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {log.aiResponse}
-                  </p>
-                </div>
-              </div>
+                {alerta.aiResponse && (
+                  <div className="border-t border-gray-200 pt-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Análise da IA
+                    </h3>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-gray-700 whitespace-pre-wrap">
+                        {alerta.aiResponse}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  WhatsApp Recipients
-                </h3>
-                <div className="space-y-2">
-                  {log.recipients.map((recipient, i) => (
-                    <div key={i} className="flex items-center space-x-2">
-                      <span className="text-gray-700">{recipient}</span>
-                      {log.sendStatus[i] ? (
+                {alerta.whatsappStatus && (
+                  <div className="border-t border-gray-200 pt-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Status WhatsApp
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-700">Enviado:</span>
+                      {alerta.whatsappStatus === 'success' ? (
                         <span className="text-green-500">✓</span>
                       ) : (
                         <span className="text-red-500">✗</span>
                       )}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
