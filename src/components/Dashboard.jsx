@@ -30,6 +30,7 @@ const severityColors = {
 };
 
 export default function Dashboard() {
+  console.log('Dashboard component rendering');
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,20 +39,25 @@ export default function Dashboard() {
   const [qrCode, setQrCode] = useState(null);
 
   const fetchAlerts = useCallback(async () => {
+    console.log('Fetching alerts...');
     try {
       const response = await axios.get('/api/alerta');
+      console.log('Alerts response:', response.data);
       setAlerts(response.data);
     } catch (err) {
       console.error('Error fetching alerts:', err);
       setError('Erro ao carregar alertas');
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   }, []);
 
   const checkWhatsAppStatus = useCallback(async () => {
+    console.log('Checking WhatsApp status...');
     try {
       const response = await axios.get('/api/whatsapp/status');
+      console.log('WhatsApp status response:', response.data);
       setWhatsappStatus(response.data.status);
     } catch (err) {
       console.error('Error checking WhatsApp status:', err);
@@ -60,23 +66,39 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    console.log('Dashboard useEffect running');
     let mounted = true;
 
     const loadData = async () => {
+      console.log('loadData function called, mounted:', mounted);
       if (mounted) {
-        await Promise.all([
-          fetchAlerts(),
-          checkWhatsAppStatus()
-        ]);
+        try {
+          await Promise.all([
+            fetchAlerts(),
+            checkWhatsAppStatus()
+          ]);
+          console.log('Initial data load complete');
+        } catch (error) {
+          console.error('Error in initial data load:', error);
+        }
       }
     };
 
     loadData();
 
-    const alertsInterval = setInterval(fetchAlerts, 30000);
-    const statusInterval = setInterval(checkWhatsAppStatus, 30000);
+    // Aumentando o intervalo para 2 minutos
+    const alertsInterval = setInterval(() => {
+      console.log('Alerts interval triggered');
+      fetchAlerts();
+    }, 120000);
+
+    const statusInterval = setInterval(() => {
+      console.log('Status interval triggered');
+      checkWhatsAppStatus();
+    }, 120000);
 
     return () => {
+      console.log('Dashboard cleanup running');
       mounted = false;
       clearInterval(alertsInterval);
       clearInterval(statusInterval);
@@ -84,9 +106,11 @@ export default function Dashboard() {
   }, [fetchAlerts, checkWhatsAppStatus]);
 
   const handleConnect = async () => {
+    console.log('handleConnect called');
     setShowQrModal(true);
     try {
       const response = await axios.get('/api/whatsapp/qr');
+      console.log('QR code response:', response.data);
       setQrCode(response.data.qr);
       setWhatsappStatus('connecting');
     } catch (err) {
@@ -100,7 +124,10 @@ export default function Dashboard() {
     return new Date(dateString).toLocaleString();
   };
 
+  console.log('Current state:', { loading, error, alertsCount: alerts.length, whatsappStatus });
+
   if (loading) {
+    console.log('Rendering loading state');
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -109,6 +136,7 @@ export default function Dashboard() {
   }
 
   if (error) {
+    console.log('Rendering error state:', error);
     return (
       <div className="text-center py-12">
         <p className="text-red-600">{error}</p>
@@ -116,6 +144,7 @@ export default function Dashboard() {
     );
   }
 
+  console.log('Rendering main dashboard content');
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
